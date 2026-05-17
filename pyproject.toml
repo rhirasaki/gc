@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "photo-manager"
+version = "0.1.0"
+description = "Offline-first photo manager with nightly Google Photos sync"
+requires-python = ">=3.10"
+readme = "README.md"
+license = { text = "MIT" }
+dependencies = [
+    "PyQt6>=6.6",
+    "google-auth>=2.27",
+    "google-auth-oauthlib>=1.2",
+    "google-auth-httplib2>=0.2",
+    "google-api-python-client>=2.120",
+    "requests>=2.31",
+    "watchdog>=4.0",
+    "APScheduler>=3.10",
+    "Pillow>=10.2",
+    "pillow-heif>=0.16",
+    "keyring>=24.3",
+    "platformdirs>=4.2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pytest-cov>=4.1"]
+
+[project.scripts]
+photo-manager = "photo_manager.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["photo_manager*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

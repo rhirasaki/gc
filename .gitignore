@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.installed.cfg
+*.egg
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# App data
+*.sqlite
+*.sqlite3
+*.db
+client_secret*.json
+credentials.json
+token.json
+logs/
+.photo_manager/
+test_data/
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
