@@ -1,0 +1,26 @@
+appId: com.photoorganizer.app
+productName: Photo Organizer
+directories:
+  output: release
+  buildResources: assets
+files:
+  - dist/**/*
+  - package.json
+  - node_modules/**/*
+mac:
+  category: public.app-category.photography
+  target:
+    - dmg
+    - zip
+win:
+  target:
+    - nsis
+    - portable
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Graphics
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
