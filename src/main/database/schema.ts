@@ -97,5 +97,18 @@ export function initializeSchema(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_album_assignments_image ON album_assignments(image_id);
     CREATE INDEX IF NOT EXISTS idx_album_assignments_album ON album_assignments(album_id);
     CREATE INDEX IF NOT EXISTS idx_flags_image_id ON flags(image_id);
+
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+
+    INSERT OR IGNORE INTO app_settings (key, value) VALUES ('libraryPath', '');
+    INSERT OR IGNORE INTO app_settings (key, value) VALUES ('rcloneRemote', 'gdrive');
+    INSERT OR IGNORE INTO app_settings (key, value) VALUES ('rcloneRemotePath', 'Photos');
+    INSERT OR IGNORE INTO app_settings (key, value) VALUES ('rclonePath', 'rclone');
+    INSERT OR IGNORE INTO app_settings (key, value) VALUES ('autoImportEnabled', 'false');
+    INSERT OR IGNORE INTO app_settings (key, value) VALUES ('thumbnailSize', '200');
+    INSERT OR IGNORE INTO app_settings (key, value) VALUES ('theme', 'dark');
   `);
 }
