@@ -1,6 +1,10 @@
 node_modules/
 dist/
 release/
+src/renderer/dist/
 *.db
+*.db-journal
+*.db-wal
+*.db-shm
 .DS_Store
 .env

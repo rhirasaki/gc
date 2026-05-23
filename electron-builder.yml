@@ -1,26 +1,47 @@
 appId: com.photoorganizer.app
 productName: Photo Organizer
+copyright: Copyright © 2024
+author: rhirasaki
+
+asar: true
+asarUnpack:
+  - "node_modules/better-sqlite3/**"
+  - "node_modules/bindings/**"
+  - "node_modules/file-uri-to-path/**"
+
 directories:
   output: release
   buildResources: assets
+
 files:
   - dist/**/*
   - package.json
-  - node_modules/**/*
+
 mac:
   category: public.app-category.photography
+  hardenedRuntime: false
+  gatekeeperAssess: false
   target:
-    - dmg
-    - zip
+    - target: dmg
+      arch: arm64
+    - target: zip
+      arch: arm64
+
+dmg:
+  title: Photo Organizer ${version}
+  window:
+    width: 540
+    height: 380
+
 win:
   target:
     - nsis
-    - portable
+
 linux:
   target:
     - AppImage
-    - deb
   category: Graphics
+
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true

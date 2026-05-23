@@ -13,8 +13,8 @@
     "start": "electron .",
     "package": "electron-builder"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["photo", "organizer", "travel", "electron"],
+  "author": "rhirasaki",
   "license": "MIT",
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.8",

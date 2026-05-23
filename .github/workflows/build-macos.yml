@@ -1,0 +1,89 @@
+name: Build macOS App
+
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'Create a GitHub Release with this build'
+        type: boolean
+        default: false
+      version:
+        description: 'Version tag for release (e.g. v1.0.0)'
+        type: string
+        default: 'v1.0.0'
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build-macos:
+    name: Build macOS ARM64 (Apple Silicon)
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build renderer (Vite)
+        run: npm run build:renderer
+
+      - name: Build main process (TypeScript)
+        run: npm run build:main
+
+      - name: Package app with electron-builder
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: npx electron-builder --mac --arm64
+
+      - name: List release artifacts
+        run: ls -lh release/
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Photo-Organizer-macOS-arm64-dmg
+          path: release/*.dmg
+          retention-days: 30
+
+      - name: Upload ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Photo-Organizer-macOS-arm64-zip
+          path: release/*.zip
+          retention-days: 30
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || github.event.inputs.version }}
+          name: Photo Organizer ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || github.event.inputs.version }}
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+          body: |
+            ## Photo Organizer — macOS (Apple Silicon)
+
+            ### Installation
+            1. Download `Photo.Organizer-*.dmg`
+            2. Open the DMG and drag **Photo Organizer** to your Applications folder
+            3. On first launch: right-click the app → **Open** → **Open** (to bypass Gatekeeper on unsigned builds)
+
+            ### Requirements
+            - macOS 12+ on Apple Silicon (M1/M2/M3/M4)
+            - [rclone](https://rclone.org/install/) installed for upload features
+
+          files: |
+            release/*.dmg
+            release/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
