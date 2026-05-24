@@ -89,7 +89,6 @@ class MainWindow(QMainWindow):
         for label in ("All", "Inbox", "Pending", "Uploading", "Uploaded",
                       "Failed", "—", "Today", "Yesterday", "This week", "Older"):
             QListWidgetItem(label, self.filter_list)
-        self.filter_list.currentItemChanged.connect(lambda *_: self.refresh())
         self.filter_list.setMaximumWidth(180)
         self.filter_list.setCurrentRow(0)
         splitter.addWidget(self.filter_list)
@@ -102,6 +101,7 @@ class MainWindow(QMainWindow):
         self.gallery.itemSelectionChanged.connect(self._on_selection_change)
         self.gallery.itemDoubleClicked.connect(self._on_double_click)
         splitter.addWidget(self.gallery)
+        self.filter_list.currentItemChanged.connect(lambda *_: self.refresh())
 
         self.metadata_panel = MetadataPanel(self._flag_selected, self._delete_selected)
         splitter.addWidget(self.metadata_panel)
