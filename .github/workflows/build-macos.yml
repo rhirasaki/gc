@@ -33,8 +33,11 @@ jobs:
           node-version: '24'
           cache: 'npm'
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install dependencies (skip native module compilation)
+        # --ignore-scripts prevents better-sqlite3 from trying to compile against
+        # Node.js 24 headers. electron-builder will rebuild it for Electron's own
+        # internal Node ABI (the correct target) during the package step.
+        run: npm ci --ignore-scripts
 
       - name: Build renderer (Vite)
         run: npm run build:renderer
@@ -43,8 +46,11 @@ jobs:
         run: npm run build:main
 
       - name: Package app with electron-builder
+        # electron-builder's default npmRebuild:true runs @electron/rebuild,
+        # which compiles better-sqlite3 for the Electron runtime (not host Node).
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
+          npm_config_build_from_source: true
         run: npx electron-builder --mac --arm64
 
       - name: List release artifacts
