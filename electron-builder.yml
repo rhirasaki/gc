@@ -1,6 +1,7 @@
 appId: com.photoorganizer.app
 productName: Photo Organizer
 copyright: Copyright © 2024
+publish: never
 
 asar: true
 asarUnpack:
