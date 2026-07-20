@@ -38,6 +38,7 @@ export type ChapterInfo = {
 export type ProjectDetail = ProjectCard & {
   chapters: ChapterInfo[];
   ai_overrides: Record<string, { provider?: string; model?: string }> | null;
+  drive_folder_id: string | null;
 };
 
 export type AssetInfo = {
@@ -124,6 +125,13 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ chapter_id, tone, word_count: 350 }),
     }),
+  driveConfig: (id: string, drive_folder_id: string | null) =>
+    j<object>(`/api/projects/${id}/drive/config`, { method: "POST", body: JSON.stringify({ drive_folder_id }) }),
+  driveSync: (id: string, direction: "pull" | "push") =>
+    j<{ job_id: string }>(`/api/projects/${id}/drive/${direction}`, { method: "POST" }),
+  enrichPins: (id: string) => j<{ job_id: string }>(`/api/projects/${id}/pins/enrich`, { method: "POST" }),
+  connections: () =>
+    j<{ drive_connected: boolean; places_connected: boolean }>("/api/settings"),
   renameChapter: (id: string, chapterId: string, label: string) =>
     j<object>(`/api/projects/${id}/chapters/${chapterId}/rename`, { method: "POST", body: JSON.stringify({ label }) }),
   pinHero: (id: string, chapterId: string, asset_id: string | null) =>

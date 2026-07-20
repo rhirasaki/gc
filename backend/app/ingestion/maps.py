@@ -80,9 +80,6 @@ def parse_any(path: Path) -> list[NormalizedPin]:
     raise ValueError(f"Unsupported map export format: {ext}")
 
 
-def fetch_places_api(place_list_url: str, api_key: str) -> list[NormalizedPin]:
-    """Places API enrichment hook. Requires a key configured in settings; the
-    file-export paths above are the no-dependency default."""
-    raise NotImplementedError(
-        "Places API sync requires a Google Maps API key; import a KML/GeoJSON export instead."
-    )
+# Google Maps *lists* expose no public API — KML/GeoJSON export (above) is the
+# ingestion path. Enrichment of imported pins via the Places API lives in
+# app/integrations/places.py + services/pin_enrich.py.

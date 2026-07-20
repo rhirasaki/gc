@@ -295,6 +295,9 @@ const PROVIDERS = ["", "anthropic", "google", "deepseek", "openai", "local"];
 function Sources({ id, p, say, reload }: { id: string; p: ProjectDetail; say: (m: string) => void; reload: () => void }) {
   const [pasted, setPasted] = useState("");
   const [ov, setOv] = useState<Record<string, { provider?: string; model?: string }>>(p.ai_overrides ?? {});
+  const [folderId, setFolderId] = useState(p.drive_folder_id ?? "");
+  const [conn, setConn] = useState<{ drive_connected: boolean; places_connected: boolean } | null>(null);
+  useEffect(() => { api.connections().then(setConn).catch(() => {}); }, []);
 
   const upload = (kind: "notes" | "pins") => (e: { target: HTMLInputElement }) => {
     if (!e.target.files?.length) return;
@@ -334,6 +337,17 @@ function Sources({ id, p, say, reload }: { id: string; p: ProjectDetail; say: (m
         </p>
         <input type="file" multiple accept=".kml,.geojson,.json"
           className="mt-3 text-xs" onChange={upload("pins")} />
+        <div className="mt-3">
+          <Button kind="quiet" disabled={!conn?.places_connected}
+            onClick={() => api.enrichPins(id).then((r) => { say(`Enrichment queued (job ${r.job_id.slice(0, 8)})`); reload(); }).catch((e) => say(String(e)))}>
+            Enrich pins via Places
+          </Button>
+          {conn && !conn.places_connected && (
+            <div className="mono text-[10px] text-ink-2 mt-1">
+              Needs GOOGLE_MAPS_API_KEY — fills in categories and exact coordinates.
+            </div>
+          )}
+        </div>
 
         <div className="border-t border-line mt-5 pt-4">
           <Eyebrow>Synopsis</Eyebrow>
@@ -344,6 +358,37 @@ function Sources({ id, p, say, reload }: { id: string; p: ProjectDetail; say: (m
             </Button>
           </div>
         </div>
+      </Card>
+
+      <Card className="col-span-2">
+        <Eyebrow>Google Drive</Eyebrow>
+        <p className="text-xs text-ink-2 mt-2">
+          Optional sync: pull the client's photos, notes and map exports from a shared Drive
+          folder; push rendered PDFs back to a "Rendered" subfolder. Local folders remain the
+          source of truth.
+        </p>
+        <div className="flex gap-2 items-center mt-3">
+          <input className="bg-paper border border-line px-3 py-1.5 text-sm mono flex-1 max-w-md"
+            placeholder="Drive folder id (from the folder's URL)"
+            value={folderId} onChange={(e) => setFolderId(e.target.value)} />
+          <Button kind="quiet" disabled={folderId === (p.drive_folder_id ?? "")}
+            onClick={() => api.driveConfig(id, folderId.trim() || null).then(() => { say("Drive folder saved"); reload(); })}>
+            Save folder
+          </Button>
+          <Button kind="quiet" disabled={!conn?.drive_connected || !p.drive_folder_id}
+            onClick={() => api.driveSync(id, "pull").then((r) => say(`Drive pull queued (job ${r.job_id.slice(0, 8)})`)).catch((e) => say(String(e)))}>
+            Pull from Drive
+          </Button>
+          <Button kind="quiet" disabled={!conn?.drive_connected || !p.drive_folder_id}
+            onClick={() => api.driveSync(id, "push").then((r) => say(`Drive push queued (job ${r.job_id.slice(0, 8)})`)).catch((e) => say(String(e)))}>
+            Push renders
+          </Button>
+        </div>
+        {conn && !conn.drive_connected && (
+          <div className="mono text-[10px] text-ink-2 mt-2">
+            Not connected — set PBG_GDRIVE_CLIENT_ID / PBG_GDRIVE_CLIENT_SECRET / PBG_GDRIVE_REFRESH_TOKEN and restart the backend.
+          </div>
+        )}
       </Card>
 
       <Card className="col-span-2">

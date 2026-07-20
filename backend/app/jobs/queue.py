@@ -47,6 +47,18 @@ def _dispatch(db: Session, project: Project | None, job: Job, progress) -> dict:
         return classify_project(db, project, progress)
     if job.kind == "cleanup_artifacts":
         return cleanup_artifacts(project.id)
+    if job.kind == "drive_pull":
+        from ..services.drive_sync import pull_from_drive
+
+        return pull_from_drive(db, project, progress)
+    if job.kind == "drive_push":
+        from ..services.drive_sync import push_to_drive
+
+        return push_to_drive(db, project, progress)
+    if job.kind == "enrich_pins":
+        from ..services.pin_enrich import enrich_pins
+
+        return enrich_pins(db, project, progress)
     if job.kind == "regenerate_narrative":
         chapter = db.get(Chapter, params["chapter_id"])
         out = generate_chapter_narrative(db, project, chapter,

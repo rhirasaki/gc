@@ -116,6 +116,7 @@ def get_project(project_id: str, db: Session = Depends(get_db)):
                     for ca in c.chapter_assets]}
         for c in sorted(p.chapters, key=lambda c: c.position)]
     card["ai_overrides"] = p.ai_overrides
+    card["drive_folder_id"] = p.drive_folder_id
     return card
 
 
@@ -412,6 +413,47 @@ async def upload_pins(project_id: str, files: list[UploadFile],
     return {"imported": total}
 
 
+# ---------- Google Drive sync (optional per-project) ----------
+
+class DriveConfigIn(BaseModel):
+    drive_folder_id: str | None = None  # null disconnects
+
+
+@router.post("/projects/{project_id}/drive/config")
+def drive_config(project_id: str, body: DriveConfigIn, db: Session = Depends(get_db)):
+    p = _get_project(db, project_id)
+    p.drive_folder_id = body.drive_folder_id or None
+    db.commit()
+    return {"ok": True, "drive_folder_id": p.drive_folder_id}
+
+
+@router.post("/projects/{project_id}/drive/{direction}")
+def drive_sync(project_id: str, direction: str, db: Session = Depends(get_db)):
+    from ..integrations.google_auth import configured as drive_configured
+
+    if direction not in ("pull", "push"):
+        raise HTTPException(400, "direction must be pull|push")
+    if not drive_configured():
+        raise HTTPException(400, "Google Drive is not connected — set the "
+                                 "PBG_GDRIVE_* credentials and restart.")
+    p = _get_project(db, project_id)
+    if not p.drive_folder_id:
+        raise HTTPException(400, "Set this project's Drive folder id first.")
+    job = enqueue(db, project_id, f"drive_{direction}")
+    return {"job_id": job.id}
+
+
+@router.post("/projects/{project_id}/pins/enrich")
+def pins_enrich(project_id: str, db: Session = Depends(get_db)):
+    from ..integrations.places import configured as places_configured
+
+    if not places_configured():
+        raise HTTPException(400, "Places enrichment needs GOOGLE_MAPS_API_KEY.")
+    _get_project(db, project_id)
+    job = enqueue(db, project_id, "enrich_pins")
+    return {"job_id": job.id}
+
+
 # ---------- rendering ----------
 
 @router.post("/projects/{project_id}/render/{tier}")
@@ -566,10 +608,15 @@ def get_settings(db: Session = Depends(get_db)):
         routes[task.value] = {"provider": ov.get("provider", prov),
                               "model": ov.get("model", model),
                               "default_provider": prov, "default_model": model}
+    from ..integrations.google_auth import configured as drive_configured
+    from ..integrations.places import configured as places_configured
+
     return {"ai_routes": routes, "providers": KNOWN_PROVIDERS,
             "budget_alert_usd": settings.token_budget_alert_usd,
             "chunk_threshold_mb": settings.chunk_threshold_mb,
-            "data_root": str(settings.data_root)}
+            "data_root": str(settings.data_root),
+            "drive_connected": drive_configured(),
+            "places_connected": places_configured()}
 
 
 class SettingsIn(BaseModel):
