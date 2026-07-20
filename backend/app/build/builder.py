@@ -25,9 +25,16 @@ def _esc(s: str | None) -> str:
     return html.escape(s or "")
 
 
+# "file": file:// URIs for print rendering. "api": app URLs for the in-browser
+# web preview tier (same content, no Chromium run needed to view it).
+_IMG_MODE = "file"
+
+
 def _img_uri(asset) -> str:
+    if _IMG_MODE == "api":
+        return f"/api/assets/{asset.id}/file"
     path = Path(asset.original_path if asset.finalized else (asset.working_path or asset.original_path))
-    return path.resolve().as_uri().replace("file://", "file://")
+    return path.resolve().as_uri()
 
 
 def _tokens_css(project: Project) -> str:
@@ -194,6 +201,38 @@ def build_monolith(project: Project) -> Path:
     monolith = dirs["root"] / "book.html"
     assembly.assemble_monolith(head + preamble, tail, fragment_paths, monolith)
     return monolith
+
+
+def build_web_preview(project: Project) -> Path:
+    """Lower-fidelity HTML preview (§2.2): the same builder output with API
+    image URLs, viewable in a browser without any Chromium render. Assembled
+    in memory — it never touches the print pipeline's chapter fragments."""
+    global _IMG_MODE
+    dirs = project_dirs(project.id)
+    _IMG_MODE = "api"
+    try:
+        head, tail = shell(project)
+        chapters = sorted(project.chapters, key=lambda c: c.position)
+        cover_hero = None
+        for ch in chapters:
+            hid = pick_hero(ch)
+            if hid:
+                a = next((ca.asset for ca in ch.chapter_assets if ca.asset_id == hid), None)
+                if a:
+                    cover_hero = _img_uri(a)
+                    break
+        parts = [head, cover_page(project, cover_hero), front_matter_page(project)]
+        folio = 2
+        for ch in chapters:
+            frag = chapter_html(project, ch, folio)
+            parts.append(frag)
+            folio += frag.count('class="page ')
+        parts.append(tail)
+        out = dirs["rendered"] / "book_web.html"
+        out.write_text("".join(parts), encoding="utf-8")
+        return out
+    finally:
+        _IMG_MODE = "file"
 
 
 def chapter_page_count(frag_path: Path) -> int:

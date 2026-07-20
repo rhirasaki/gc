@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     token_budget_alert_usd: float = 50.0   # per-project alert threshold
     default_book_price_usd: float = 2500.0
 
+    # Scheduled artifact cleanup (§12): hours between sweeps, 0 disables.
+    cleanup_interval_hours: float = 24.0
+
     # Job queue: "local" (thread pool, zero external deps) or "rq" (Redis).
     job_backend: str = "local"
     redis_url: str = "redis://localhost:6379/0"

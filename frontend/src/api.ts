@@ -73,11 +73,14 @@ export type Costs = {
   budget_alert_usd: number;
 };
 
+export type PickCandidate = { id: string; aspect: string | null; subjects: string[] };
+
 export type ChatReply =
   | { kind: "answer"; text: string }
   | { kind: "clarify"; question: string; options: string[] }
   | { kind: "done"; tool: string; result: Record<string, unknown>; confirmation: string }
   | { kind: "queued"; tool: string; job_id: string; confirmation: string }
+  | { kind: "pick"; chapter_id: string; position: number; prompt: string; candidates: PickCandidate[] }
   | { kind: "error"; text: string };
 
 async function j<T>(path: string, init?: RequestInit): Promise<T> {
@@ -115,6 +118,11 @@ export const api = {
     j<{ job_id: string }>(`/api/projects/${id}/narrative`, {
       method: "POST",
       body: JSON.stringify({ chapter_id, tone, word_count: 350 }),
+    }),
+  swap: (id: string, chapter_id: string, position: number, new_asset_id: string) =>
+    j<{ swapped: boolean; chapter: string }>(`/api/projects/${id}/swap`, {
+      method: "POST",
+      body: JSON.stringify({ chapter_id, position, new_asset_id }),
     }),
   synopsis: (id: string) => j<{ synopsis: string }>(`/api/projects/${id}/synopsis`, { method: "POST" }),
   undo: (id: string) => j<{ undone: boolean; undid?: string; reason?: string }>(`/api/projects/${id}/undo`, { method: "POST" }),

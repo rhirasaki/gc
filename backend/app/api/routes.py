@@ -329,6 +329,35 @@ def cleanup(project_id: str, db: Session = Depends(get_db)):
     return {"job_id": job.id}
 
 
+class SwapIn(BaseModel):
+    chapter_id: str
+    position: int
+    new_asset_id: str
+
+
+@router.post("/projects/{project_id}/swap")
+def swap(project_id: str, body: SwapIn, db: Session = Depends(get_db)):
+    """Direct swap — completes the chat pick flow or a UI drag-replace."""
+    from ..chat import tools
+
+    p = _get_project(db, project_id)
+    try:
+        return tools.swap_asset(db, p, body.chapter_id, body.position,
+                                body.new_asset_id, source="ui")
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@router.get("/projects/{project_id}/book/web")
+def book_web(project_id: str, db: Session = Depends(get_db)):
+    """HTML web preview (§2.2): built fresh on request — string assembly only,
+    no Chromium — with images served through the API."""
+    from ..build.builder import build_web_preview
+
+    p = _get_project(db, project_id)
+    return FileResponse(build_web_preview(p), media_type="text/html")
+
+
 @router.get("/projects/{project_id}/book/{tier}")
 def book_pdf(project_id: str, tier: str, db: Session = Depends(get_db)):
     p = _get_project(db, project_id)

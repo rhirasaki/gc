@@ -17,7 +17,7 @@ def _log(db: Session, project: Project, tool: str, args: dict,
 
 
 def swap_asset(db: Session, project: Project, chapter_id: str, position: int,
-               new_asset_id: str) -> dict:
+               new_asset_id: str, source: str = "chat") -> dict:
     """Replace the asset at one position. Touches ONE link row + one dirty
     flag — the indexing guarantee from §4."""
     ca = (db.query(ChapterAsset)
@@ -30,7 +30,7 @@ def swap_asset(db: Session, project: Project, chapter_id: str, position: int,
     chapter.mark_dirty()
     _log(db, project, "swap_asset",
          {"chapter_id": chapter_id, "position": position, "new_asset_id": new_asset_id},
-         undo, chapter_id)
+         undo, chapter_id, source)
     db.commit()
     return {"swapped": True, "chapter": chapter.label, "position": position}
 

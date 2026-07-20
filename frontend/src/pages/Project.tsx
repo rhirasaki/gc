@@ -71,6 +71,7 @@ export default function Project() {
         <Button kind="quiet" onClick={kick(() => api.render(id, "preview"), "Preview render queued")}>Render preview</Button>
         <Button onClick={kick(() => api.render(id, "final"), "Final render queued")}>Render final</Button>
         <Button kind="quiet" onClick={kick(() => api.finalize(id), "High-res finalize queued")}>Finalize images</Button>
+        <a className="px-3.5 py-1.5 text-sm font-medium border border-line hover:border-ink" href={`/api/projects/${id}/book/web`} target="_blank" rel="noreferrer">Open web preview</a>
         <a className="px-3.5 py-1.5 text-sm font-medium border border-line hover:border-ink" href={`/api/projects/${id}/book/preview`} target="_blank" rel="noreferrer">Open preview PDF</a>
         <a className="px-3.5 py-1.5 text-sm font-medium border border-line hover:border-ink" href={`/api/projects/${id}/book/final`} target="_blank" rel="noreferrer">Open final PDF</a>
       </div>
@@ -290,9 +291,15 @@ function History({ id, say, reload }: { id: string; say: (m: string) => void; re
   );
 }
 
+type ChatMsg = {
+  who: "you" | "studio";
+  text: string;
+  pick?: { chapter_id: string; position: number; candidates: import("../api").PickCandidate[] };
+};
+
 function Chat({ id, onChanged }: { id: string; onChanged: () => void }) {
-  const [log, setLog] = useState<{ who: "you" | "studio"; text: string }[]>([
-    { who: "studio", text: "Tell me what to change — “swap the third photo in the Vik chapter”, “make chapter 2 warmer”, “render a preview”." },
+  const [log, setLog] = useState<ChatMsg[]>([
+    { who: "studio", text: "Tell me what to change — “swap the third photo in the Vik chapter for a wider shot”, “make chapter 2 warmer”, “render a preview”." },
   ]);
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
@@ -307,14 +314,21 @@ function Chat({ id, onChanged }: { id: string; onChanged: () => void }) {
     setBusy(true);
     try {
       const r: ChatReply = await api.chat(id, text);
-      const reply =
-        r.kind === "answer" ? r.text
-        : r.kind === "clarify" ? `${r.question}${r.options?.length ? ` (${r.options.join(" / ")})` : ""}`
-        : r.kind === "done" ? r.confirmation || "Done."
-        : r.kind === "queued" ? `${r.confirmation || "Queued."} (job ${r.job_id.slice(0, 8)})`
-        : r.text;
-      setLog((l) => [...l, { who: "studio", text: reply }]);
-      if (r.kind === "done" || r.kind === "queued") onChanged();
+      if (r.kind === "pick") {
+        setLog((l) => [...l, {
+          who: "studio", text: r.prompt,
+          pick: { chapter_id: r.chapter_id, position: r.position, candidates: r.candidates },
+        }]);
+      } else {
+        const reply =
+          r.kind === "answer" ? r.text
+          : r.kind === "clarify" ? `${r.question}${r.options?.length ? ` (${r.options.join(" / ")})` : ""}`
+          : r.kind === "done" ? r.confirmation || "Done."
+          : r.kind === "queued" ? `${r.confirmation || "Queued."} (job ${r.job_id.slice(0, 8)})`
+          : r.text;
+        setLog((l) => [...l, { who: "studio", text: reply }]);
+        if (r.kind === "done" || r.kind === "queued") onChanged();
+      }
     } catch (e) {
       setLog((l) => [...l, { who: "studio", text: `That didn't work: ${e}` }]);
     } finally {
@@ -328,6 +342,23 @@ function Chat({ id, onChanged }: { id: string; onChanged: () => void }) {
         {log.map((m, i) => (
           <div key={i} className={`max-w-[80%] text-sm px-3 py-2 ${m.who === "you" ? "self-end bg-press text-white" : "self-start bg-paper border border-line"}`}>
             {m.text}
+            {m.pick && (
+              <div className="grid grid-cols-4 gap-2 mt-2">
+                {m.pick.candidates.map((c) => (
+                  <button key={c.id} title={c.subjects?.join(", ") || c.aspect || ""}
+                    className="border border-line hover:border-press p-0 bg-transparent cursor-pointer"
+                    onClick={() =>
+                      api.swap(id, m.pick!.chapter_id, m.pick!.position, c.id)
+                        .then((r) => {
+                          setLog((l) => [...l, { who: "studio", text: `Swapped into “${r.chapter}”.` }]);
+                          onChanged();
+                        })
+                        .catch((e) => setLog((l) => [...l, { who: "studio", text: String(e) }]))}>
+                    <img src={`/api/assets/${c.id}/file`} alt={c.subjects?.join(", ") || "candidate"} className="w-full h-16 object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         ))}
         <div ref={end} />
