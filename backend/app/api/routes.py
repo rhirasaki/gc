@@ -111,6 +111,7 @@ def get_project(project_id: str, db: Session = Depends(get_db)):
          "narrative": c.narrative, "dirty": c.changed_since_final,
          "page_start": c.page_start, "page_end": c.page_end,
          "grounding": c.grounding_report,
+         "pinned_hero": c.pinned_hero_asset_id,
          "assets": [{"id": ca.asset_id, "position": ca.position, "caption": ca.caption}
                     for ca in c.chapter_assets]}
         for c in sorted(p.chapters, key=lambda c: c.position)]
@@ -209,6 +210,110 @@ def override_asset(asset_id: str, body: AssetOverrideIn, db: Session = Depends(g
     a.manual_override = True  # never clobbered by re-classification
     db.commit()
     return {"ok": True}
+
+
+# ---------- chapter editing ----------
+
+def _get_chapter(db: Session, project: Project, chapter_id: str) -> Chapter:
+    ch = db.get(Chapter, chapter_id)
+    if ch is None or ch.project_id != project.id:
+        raise HTTPException(404, "Chapter not found in this project")
+    return ch
+
+
+class RenameIn(BaseModel):
+    label: str
+
+
+@router.post("/projects/{project_id}/chapters/{chapter_id}/rename")
+def rename_chapter(project_id: str, chapter_id: str, body: RenameIn,
+                   db: Session = Depends(get_db)):
+    p = _get_project(db, project_id)
+    ch = _get_chapter(db, p, chapter_id)
+    old = ch.label
+    ch.label = body.label
+    ch.mark_dirty()
+    db.add(ChangeLog(project_id=p.id, chapter_id=ch.id, tool="rename_chapter",
+                     args={"label": body.label}, undo_state={"label": old}, source="ui"))
+    db.commit()
+    return {"ok": True}
+
+
+class PinHeroIn(BaseModel):
+    asset_id: str | None = None  # null unpins
+
+
+@router.post("/projects/{project_id}/chapters/{chapter_id}/pin-hero")
+def pin_hero(project_id: str, chapter_id: str, body: PinHeroIn,
+             db: Session = Depends(get_db)):
+    """The §8 escape hatch: a pinned hero wins over auto-selection outright."""
+    p = _get_project(db, project_id)
+    ch = _get_chapter(db, p, chapter_id)
+    ch.pinned_hero_asset_id = body.asset_id
+    ch.mark_dirty()
+    db.commit()
+    return {"ok": True, "pinned": body.asset_id}
+
+
+class AddAssetIn(BaseModel):
+    asset_id: str
+
+
+@router.post("/projects/{project_id}/chapters/{chapter_id}/assets")
+def add_chapter_asset(project_id: str, chapter_id: str, body: AddAssetIn,
+                      db: Session = Depends(get_db)):
+    p = _get_project(db, project_id)
+    ch = _get_chapter(db, p, chapter_id)
+    if any(ca.asset_id == body.asset_id for ca in ch.chapter_assets):
+        raise HTTPException(400, "That photo is already in this chapter")
+    pos = max((ca.position for ca in ch.chapter_assets), default=-1) + 1
+    db.add(ChapterAsset(chapter_id=ch.id, asset_id=body.asset_id, position=pos))
+    ch.mark_dirty()
+    db.commit()
+    return {"ok": True, "position": pos}
+
+
+@router.delete("/projects/{project_id}/chapters/{chapter_id}/assets/{position}")
+def remove_chapter_asset(project_id: str, chapter_id: str, position: int,
+                         db: Session = Depends(get_db)):
+    p = _get_project(db, project_id)
+    ch = _get_chapter(db, p, chapter_id)
+    target = next((ca for ca in ch.chapter_assets if ca.position == position), None)
+    if target is None:
+        raise HTTPException(404, "No photo at that position")
+    removed_id = target.asset_id
+    db.delete(target)
+    db.flush()
+    # close the gap so positions stay dense (two-phase for the unique constraint)
+    rest = sorted((ca for ca in ch.chapter_assets if ca.position > position),
+                  key=lambda ca: ca.position)
+    for i, ca in enumerate(rest):
+        ca.position = 1000 + i
+    db.flush()
+    for i, ca in enumerate(rest):
+        ca.position = position + i
+    if ch.pinned_hero_asset_id == removed_id:
+        ch.pinned_hero_asset_id = None
+    ch.mark_dirty()
+    db.commit()
+    return {"ok": True}
+
+
+class ReorderIn(BaseModel):
+    order: list[str]
+
+
+@router.post("/projects/{project_id}/chapters/{chapter_id}/reorder")
+def reorder_chapter(project_id: str, chapter_id: str, body: ReorderIn,
+                    db: Session = Depends(get_db)):
+    from ..chat import tools
+
+    p = _get_project(db, project_id)
+    _get_chapter(db, p, chapter_id)
+    try:
+        return tools.reorder_assets(db, p, chapter_id, body.order)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
 
 
 # ---------- AI work (queued) ----------

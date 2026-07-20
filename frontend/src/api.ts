@@ -26,7 +26,12 @@ export type ChapterInfo = {
   dirty: boolean;
   page_start: number | null;
   page_end: number | null;
-  grounding: { ungrounded_count?: number; summary?: string } | null;
+  grounding: {
+    ungrounded_count?: number;
+    summary?: string;
+    sentences?: { text: string; verdict: string; reason?: string }[];
+  } | null;
+  pinned_hero: string | null;
   assets: { id: string; position: number; caption: string | null }[];
 };
 
@@ -119,6 +124,16 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ chapter_id, tone, word_count: 350 }),
     }),
+  renameChapter: (id: string, chapterId: string, label: string) =>
+    j<object>(`/api/projects/${id}/chapters/${chapterId}/rename`, { method: "POST", body: JSON.stringify({ label }) }),
+  pinHero: (id: string, chapterId: string, asset_id: string | null) =>
+    j<object>(`/api/projects/${id}/chapters/${chapterId}/pin-hero`, { method: "POST", body: JSON.stringify({ asset_id }) }),
+  addChapterAsset: (id: string, chapterId: string, asset_id: string) =>
+    j<object>(`/api/projects/${id}/chapters/${chapterId}/assets`, { method: "POST", body: JSON.stringify({ asset_id }) }),
+  removeChapterAsset: (id: string, chapterId: string, position: number) =>
+    j<object>(`/api/projects/${id}/chapters/${chapterId}/assets/${position}`, { method: "DELETE" }),
+  reorderChapter: (id: string, chapterId: string, order: string[]) =>
+    j<object>(`/api/projects/${id}/chapters/${chapterId}/reorder`, { method: "POST", body: JSON.stringify({ order }) }),
   swap: (id: string, chapter_id: string, position: number, new_asset_id: string) =>
     j<{ swapped: boolean; chapter: string }>(`/api/projects/${id}/swap`, {
       method: "POST",
