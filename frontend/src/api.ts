@@ -116,6 +116,19 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ chapter_id, tone, word_count: 350 }),
     }),
+  synopsis: (id: string) => j<{ synopsis: string }>(`/api/projects/${id}/synopsis`, { method: "POST" }),
+  undo: (id: string) => j<{ undone: boolean; undid?: string; reason?: string }>(`/api/projects/${id}/undo`, { method: "POST" }),
+  changes: (id: string) => j<{ tool: string; args: Record<string, unknown>; source: string; at: string }[]>(`/api/projects/${id}/changes`),
+  setAiOverrides: (id: string, ai_overrides: object) =>
+    j<object>(`/api/projects/${id}/ai-overrides`, { method: "POST", body: JSON.stringify({ ai_overrides }) }),
+  uploadFiles: (id: string, kind: "notes" | "pins", files: FileList) => {
+    const form = new FormData();
+    Array.from(files).forEach((f) => form.append("files", f));
+    return fetch(`/api/projects/${id}/upload/${kind}`, { method: "POST", body: form }).then(async (r) => {
+      if (!r.ok) throw new Error((await r.json().catch(() => ({})))?.detail ?? r.statusText);
+      return r.json() as Promise<{ imported: number }>;
+    });
+  },
   overrideAsset: (assetId: string, body: object) =>
     j<object>(`/api/assets/${assetId}/override`, { method: "POST", body: JSON.stringify(body) }),
   saveTemplate: (body: object) => j<{ id: string }>("/api/templates", { method: "POST", body: JSON.stringify(body) }),

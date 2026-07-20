@@ -84,6 +84,49 @@ class AnthropicProvider:
         return AIResponse(text=msg.content[0].text, input_tokens=msg.usage.input_tokens,
                           output_tokens=msg.usage.output_tokens, model=model, provider=self.name)
 
+    def classify_images_batch(self, *, system: str, images: list[tuple[str, Path]],
+                              model: str, max_tokens: int = 1024,
+                              poll_interval_s: float = 10.0,
+                              timeout_s: float = 3600.0) -> dict[str, AIResponse]:
+        """Message Batches API: ~50% cheaper per token than serial calls — the
+        §5.2 cost lever. Returns {custom_id: AIResponse}; ids with errors are
+        omitted so the caller can retry them serially."""
+        import time
+
+        client = self._client()
+        requests = []
+        for cid, path in images:
+            b64, media = _img_b64(path)
+            requests.append({
+                "custom_id": cid,
+                "params": {
+                    "model": model, "max_tokens": max_tokens, "system": system,
+                    "messages": [{"role": "user", "content": [
+                        {"type": "image",
+                         "source": {"type": "base64", "media_type": media, "data": b64}},
+                        {"type": "text",
+                         "text": "Classify this photo per your instructions. JSON only."},
+                    ]}],
+                },
+            })
+        batch = client.messages.batches.create(requests=requests)
+        deadline = time.monotonic() + timeout_s
+        while batch.processing_status != "ended":
+            if time.monotonic() > deadline:
+                raise TimeoutError(f"Classification batch {batch.id} still running after {timeout_s}s")
+            time.sleep(poll_interval_s)
+            batch = client.messages.batches.retrieve(batch.id)
+
+        out: dict[str, AIResponse] = {}
+        for entry in client.messages.batches.results(batch.id):
+            if entry.result.type != "succeeded":
+                continue
+            msg = entry.result.message
+            out[entry.custom_id] = AIResponse(
+                text=msg.content[0].text, input_tokens=msg.usage.input_tokens,
+                output_tokens=msg.usage.output_tokens, model=model, provider=self.name)
+        return out
+
 
 class OpenAICompatProvider:
     """OpenAI-compatible chat API — used directly for OpenAI and DeepSeek

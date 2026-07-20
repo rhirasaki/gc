@@ -11,6 +11,7 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
+from ..config import settings
 from ..models import Asset, AssetRole, AIRun, Project, TaskType
 from ..agents.runner import load_prompt, run_image_agent
 
@@ -31,29 +32,82 @@ def classify_asset(db: Session, project: Project, asset: Asset, *, force: bool =
 
     image = Path(asset.working_path or asset.original_path)
     result = run_image_agent(db, "classification", image, project=project)
-    asset.classification = result
-    role = result.get("suggested_role", "candid")
-    asset.suggested_role = AssetRole(role) if role in AssetRole.__members__ else AssetRole.candid
     from ..ai.router import resolve_route
 
     route = resolve_route(TaskType.classification, project, db)
-    asset.classified_by_provider = route.provider
-    asset.classified_by_model = route.model
-    asset.classified_at = datetime.now(timezone.utc)
+    _apply_result(db, project, asset, result, route.provider, route.model)
     db.commit()
     return result
 
 
+def _apply_result(db: Session, project: Project, asset: Asset, result: dict,
+                  provider: str, model: str) -> None:
+    asset.classification = result
+    role = result.get("suggested_role", "candid")
+    asset.suggested_role = AssetRole(role) if role in AssetRole.__members__ else AssetRole.candid
+    asset.classified_by_provider = provider
+    asset.classified_by_model = model
+    asset.classified_at = datetime.now(timezone.utc)
+
+
+def _classify_batch_anthropic(db: Session, project: Project, assets: list[Asset],
+                              progress) -> set[str]:
+    """One Message Batches call for the whole backlog (§5.2: batch APIs cut
+    cost). Returns the ids that succeeded; the caller retries the rest
+    serially. Raises to trigger full serial fallback (no SDK, no key, ...)."""
+    from ..ai.provider import AnthropicProvider, get_provider
+    from ..ai.router import estimate_cost_usd, resolve_route
+
+    route = resolve_route(TaskType.classification, project, db)
+    provider = get_provider(route.provider)
+    if not isinstance(provider, AnthropicProvider):
+        raise RuntimeError("batch path is Anthropic-only for now")
+
+    prompt = load_prompt("classification")
+    images = [(a.id, Path(a.working_path or a.original_path)) for a in assets]
+    progress(0.05, f"Submitted batch of {len(images)} photos")
+    results = provider.classify_images_batch(system=prompt.system, images=images,
+                                             model=route.model)
+    ok: set[str] = set()
+    by_id = {a.id: a for a in assets}
+    for cid, resp in results.items():
+        try:
+            parsed = resp.json()
+        except (ValueError, KeyError):
+            continue
+        _apply_result(db, project, by_id[cid], parsed, route.provider, route.model)
+        db.add(AIRun(project_id=project.id, task_type=TaskType.classification,
+                     provider=resp.provider, model=resp.model,
+                     input_tokens=resp.input_tokens, output_tokens=resp.output_tokens,
+                     # Batch API bills at 50% of list price.
+                     estimated_cost_usd=estimate_cost_usd(resp.model, resp.input_tokens,
+                                                          resp.output_tokens) * 0.5,
+                     agent="classification", prompt_version=prompt.version))
+        ok.add(cid)
+    db.commit()
+    return ok
+
+
 def classify_project(db: Session, project: Project, progress=lambda f, n: None) -> dict:
-    """Batch walk. Skips manual overrides and cache hits; only unclassified
-    content spends tokens."""
+    """Walk every live asset. Cache hits and manual overrides are free; the
+    unclassified backlog goes through the batch API when it's big enough,
+    with serial as the fallback for stragglers and non-batch providers."""
     assets = [a for a in project.assets if a.duplicate_of is None]
-    done = spent = cached = 0
-    for i, asset in enumerate(assets):
-        had = asset.classification is not None
-        classify_asset(db, project, asset)
+    backlog = [a for a in assets if a.classification is None and not a.manual_override]
+    cached = len(assets) - len(backlog)
+
+    batched: set[str] = set()
+    if len(backlog) >= settings.classification_batch_min:
+        try:
+            batched = _classify_batch_anthropic(db, project, backlog, progress)
+        except Exception:  # noqa: BLE001 — batch is an optimization, never a blocker
+            batched = set()
+
+    done = 0
+    for asset in assets:
+        if asset.id not in batched:
+            classify_asset(db, project, asset)
         done += 1
-        cached += 1 if had else 0
-        spent += 0 if had else 1
         progress(done / max(len(assets), 1), f"Classified {done}/{len(assets)}")
-    return {"classified": spent, "cache_hits": cached, "total": done}
+    return {"classified": len(backlog), "batched": len(batched),
+            "cache_hits": cached, "total": len(assets)}

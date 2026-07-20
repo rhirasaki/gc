@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     working_long_edge_px: int = 1600       # draft derivative size; originals are never embedded in drafts
     derivative_quality: int = 85
     near_duplicate_phash_distance: int = 6
+    # Use a provider's batch API for classification once this many photos are
+    # unclassified (batch pricing is the §5.2 cost lever); below it, serial.
+    classification_batch_min: int = 4
 
     # Book defaults
     images_per_chapter_min: int = 5

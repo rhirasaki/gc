@@ -48,6 +48,7 @@ TASK_FOR_AGENT: dict[str, TaskType] = {
     "chat_orchestrator": TaskType.chat,
     "ingestion": TaskType.ingestion,
     "layout": TaskType.layout,
+    "synopsis": TaskType.synopsis,
 }
 
 

@@ -239,6 +239,74 @@ def research(project_id: str, db: Session = Depends(get_db)):
     return research_places(db, p)
 
 
+@router.post("/projects/{project_id}/synopsis")
+def synopsis(project_id: str, db: Session = Depends(get_db)):
+    from ..services.synopsis import generate_synopsis
+
+    p = _get_project(db, project_id)
+    return {"synopsis": generate_synopsis(db, p)}
+
+
+@router.post("/projects/{project_id}/undo")
+def undo(project_id: str, db: Session = Depends(get_db)):
+    from ..chat.tools import undo_last
+
+    p = _get_project(db, project_id)
+    return undo_last(db, p)
+
+
+class AIOverridesIn(BaseModel):
+    ai_overrides: dict[str, dict]
+
+
+@router.post("/projects/{project_id}/ai-overrides")
+def set_ai_overrides(project_id: str, body: AIOverridesIn, db: Session = Depends(get_db)):
+    p = _get_project(db, project_id)
+    p.ai_overrides = body.ai_overrides
+    db.commit()
+    return {"ok": True}
+
+
+# ---------- file uploads (notes / map exports) ----------
+
+@router.post("/projects/{project_id}/upload/notes")
+async def upload_notes(project_id: str, files: list[UploadFile],
+                       db: Session = Depends(get_db)):
+    """Note files (Apple Notes .html, Keep .json, .docx, .txt/.md) uploaded
+    straight from the browser — no filesystem paths for the operator."""
+    p = _get_project(db, project_id)
+    updir = project_dirs(p.id)["root"] / "uploads" / "notes"
+    updir.mkdir(parents=True, exist_ok=True)
+    saved: list[Path] = []
+    for f in files:
+        dest = updir / Path(f.filename or "note.txt").name
+        dest.write_bytes(await f.read())
+        saved.append(dest)
+    try:
+        n = ingest_svc.import_notes(db, p, saved)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return {"imported": n}
+
+
+@router.post("/projects/{project_id}/upload/pins")
+async def upload_pins(project_id: str, files: list[UploadFile],
+                      db: Session = Depends(get_db)):
+    """Google Takeout KML / GeoJSON uploads."""
+    p = _get_project(db, project_id)
+    updir = project_dirs(p.id)["root"] / "uploads" / "maps"
+    updir.mkdir(parents=True, exist_ok=True)
+    total = 0
+    for f in files:
+        dest = updir / Path(f.filename or "places.kml").name
+        dest.write_bytes(await f.read())
+        try:
+            total += ingest_svc.import_map_pins(db, p, dest)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+    return {"imported": total}
+
+
 # ---------- rendering ----------
 
 @router.post("/projects/{project_id}/render/{tier}")

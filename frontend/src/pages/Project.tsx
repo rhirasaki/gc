@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { api, AssetInfo, ChatReply, JobInfo, money, ProjectDetail } from "../api";
 import { Button, Card, Eyebrow, Progress, Stat, StatusTag } from "../ui";
 
-type Tab = "book" | "photos" | "chat";
+type Tab = "book" | "photos" | "chat" | "sources" | "history";
 
 export default function Project() {
   const { id = "" } = useParams();
@@ -76,7 +76,7 @@ export default function Project() {
       </div>
 
       <div className="flex gap-0 border-b border-line mb-5">
-        {(["book", "photos", "chat"] as Tab[]).map((t) => (
+        {(["book", "photos", "chat", "sources", "history"] as Tab[]).map((t) => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-4 py-2 text-sm capitalize border-b-2 -mb-px ${tab === t ? "border-press text-press font-semibold" : "border-transparent text-ink-2"}`}>
             {t === "book" ? "Chapters" : t}
@@ -87,6 +87,8 @@ export default function Project() {
       {tab === "book" && <Chapters p={p} onNarrative={(cid) => kick(() => api.narrative(id, cid), "Narrative generation queued")()} />}
       {tab === "photos" && <Photos assets={assets} onOverride={(aid, role) => api.overrideAsset(aid, { role }).then(reload)} />}
       {tab === "chat" && <Chat id={id} onChanged={reload} />}
+      {tab === "sources" && <Sources id={id} p={p} say={say} reload={reload} />}
+      {tab === "history" && <History id={id} say={say} reload={reload} />}
 
       {toast && (
         <div className="fixed bottom-6 right-6 bg-ink text-paper px-4 py-2 text-sm shadow-lg">{toast}</div>
@@ -163,6 +165,128 @@ function Photos({ assets, onOverride }: { assets: AssetInfo[]; onOverride: (id: 
         </Card>
       ))}
     </div>
+  );
+}
+
+const TASKS = ["classification", "narrative", "research", "chat", "grounding", "synopsis"];
+const PROVIDERS = ["", "anthropic", "google", "deepseek", "openai", "local"];
+
+function Sources({ id, p, say, reload }: { id: string; p: ProjectDetail; say: (m: string) => void; reload: () => void }) {
+  const [pasted, setPasted] = useState("");
+  const [ov, setOv] = useState<Record<string, { provider?: string; model?: string }>>(p.ai_overrides ?? {});
+
+  const upload = (kind: "notes" | "pins") => (e: { target: HTMLInputElement }) => {
+    if (!e.target.files?.length) return;
+    api.uploadFiles(id, kind, e.target.files)
+      .then((r) => { say(`Imported ${r.imported} ${kind}`); reload(); })
+      .catch((err) => say(String(err)));
+    e.target.value = "";
+  };
+
+  return (
+    <div className="grid grid-cols-2 gap-6">
+      <Card>
+        <Eyebrow>Trip notes</Eyebrow>
+        <p className="text-xs text-ink-2 mt-2">
+          Apple Notes exports (.html), Google Keep (.json), Word (.docx), or plain text — or paste below.
+        </p>
+        <input type="file" multiple accept=".html,.htm,.json,.docx,.txt,.md"
+          className="mt-3 text-xs" onChange={upload("notes")} />
+        <textarea
+          className="w-full bg-paper border border-line px-3 py-2 text-sm mt-3 h-28"
+          placeholder="Paste notes here…"
+          value={pasted}
+          onChange={(e) => setPasted(e.target.value)}
+        />
+        <div className="mt-2">
+          <Button kind="quiet" disabled={!pasted.trim()}
+            onClick={() => api.importNotes(id, pasted).then(() => { setPasted(""); say("Notes imported"); reload(); })}>
+            Import pasted notes
+          </Button>
+        </div>
+      </Card>
+
+      <Card>
+        <Eyebrow>Map pins</Eyebrow>
+        <p className="text-xs text-ink-2 mt-2">
+          Google Takeout "Saved Places" — KML or GeoJSON.
+        </p>
+        <input type="file" multiple accept=".kml,.geojson,.json"
+          className="mt-3 text-xs" onChange={upload("pins")} />
+
+        <div className="border-t border-line mt-5 pt-4">
+          <Eyebrow>Synopsis</Eyebrow>
+          <p className="text-xs text-ink-2 mt-2">{p.synopsis ?? "No synopsis yet."}</p>
+          <div className="mt-2">
+            <Button kind="quiet" onClick={() => api.synopsis(id).then(() => { say("Synopsis updated"); reload(); }).catch((e) => say(String(e)))}>
+              {p.synopsis ? "Rewrite synopsis" : "Write synopsis"}
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="col-span-2">
+        <Eyebrow>Model routing for this commission</Eyebrow>
+        <p className="text-xs text-ink-2 mt-2 mb-3">
+          Leave blank to use the studio defaults from Settings.
+        </p>
+        <div className="grid grid-cols-3 gap-3">
+          {TASKS.map((t) => (
+            <div key={t} className="flex items-center gap-2">
+              <span className="text-xs w-24 capitalize">{t}</span>
+              <select
+                className="flex-1 bg-paper border border-line px-2 py-1 text-xs"
+                value={ov[t]?.provider ?? ""}
+                onChange={(e) => {
+                  const next = { ...ov };
+                  if (e.target.value) next[t] = { ...next[t], provider: e.target.value };
+                  else delete next[t];
+                  setOv(next);
+                }}
+              >
+                {PROVIDERS.map((pr) => (
+                  <option key={pr} value={pr}>{pr === "" ? "default" : pr === "local" ? "local (BETA)" : pr}</option>
+                ))}
+              </select>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4">
+          <Button onClick={() => api.setAiOverrides(id, ov).then(() => say("Routing saved")).catch((e) => say(String(e)))}>
+            Save routing
+          </Button>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function History({ id, say, reload }: { id: string; say: (m: string) => void; reload: () => void }) {
+  const [rows, setRows] = useState<{ tool: string; args: Record<string, unknown>; source: string; at: string }[]>([]);
+  const load = useCallback(() => { api.changes(id).then(setRows).catch(() => {}); }, [id]);
+  useEffect(load, [load]);
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-3">
+        <Eyebrow>Change log</Eyebrow>
+        <Button kind="quiet" onClick={() =>
+          api.undo(id).then((r) => { say(r.undone ? `Undid ${r.undid}` : r.reason ?? "Nothing to undo"); load(); reload(); })}>
+          Undo last change
+        </Button>
+      </div>
+      {rows.length === 0 && <div className="text-xs text-ink-2">No changes yet — edits from chat and the UI land here.</div>}
+      <div className="flex flex-col">
+        {rows.map((r, i) => (
+          <div key={i} className="grid grid-cols-[10rem_1fr_4rem_10rem] gap-3 items-baseline border-b border-line last:border-0 py-2">
+            <span className="mono text-xs">{r.tool}</span>
+            <span className="text-xs text-ink-2 truncate">{JSON.stringify(r.args)}</span>
+            <span className="mono text-[10px] uppercase text-ink-2">{r.source}</span>
+            <span className="mono text-[10px] text-ink-2 text-right">{new Date(r.at).toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
+    </Card>
   );
 }
 
