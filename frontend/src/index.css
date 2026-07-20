@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+/* ————— Atelier design system —————
+   Paper + ink + press-blue registration accent. Numbers and spec labels are
+   always mono; display serif is used sparingly, like a stamped title. */
+@theme {
+  --color-paper: #f2f0e9;
+  --color-card: #fbfaf5;
+  --color-ink: #22252a;
+  --color-ink-2: #6d6a5e;
+  --color-line: #dcd8ca;
+  --color-press: #2742c0;
+  --color-press-soft: #e6e9f8;
+  --color-reg: #b8352c;
+  --color-ok: #3d6b44;
+
+  --font-display: "Instrument Serif", Georgia, serif;
+  --font-sans: "Archivo", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+/* Signature: crop-mark corners, like a sheet coming off the press. */
+.cropmarks {
+  position: relative;
+}
+.cropmarks::before,
+.cropmarks::after {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
+}
+.cropmarks::before {
+  top: -5px;
+  left: -5px;
+  border-top: 1.5px solid var(--color-ink);
+  border-left: 1.5px solid var(--color-ink);
+}
+.cropmarks::after {
+  bottom: -5px;
+  right: -5px;
+  border-bottom: 1.5px solid var(--color-ink);
+  border-right: 1.5px solid var(--color-ink);
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-ink-2);
+}
+
+.display {
+  font-family: var(--font-display);
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-press);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

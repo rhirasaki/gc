@@ -271,6 +271,16 @@ class Template(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
+class AppSetting(Base):
+    """Global key/value config editable from the UI (AI routing per task type,
+    budget alerts) — no config-file editing for routine workflows (§1)."""
+
+    __tablename__ = "app_settings"
+
+    key: Mapped[str] = mapped_column(String(100), primary_key=True)
+    value: Mapped[dict | None] = mapped_column(JSON)
+
+
 class AIRun(Base):
     """Every AI call. Token cost is COGS; this table is the cost dashboard."""
 

@@ -346,6 +346,45 @@ def save_template(body: TemplateIn, db: Session = Depends(get_db)):
     return {"id": t.id}
 
 
+# ---------- global settings ----------
+
+KNOWN_PROVIDERS = ["anthropic", "google", "deepseek", "openai", "local"]
+
+
+@router.get("/settings")
+def get_settings(db: Session = Depends(get_db)):
+    from ..ai.router import DEFAULT_ROUTES
+    from ..models import AppSetting, TaskType as TT
+
+    row = db.get(AppSetting, "ai_routes")
+    saved = (row.value if row else None) or {}
+    routes = {}
+    for task, (prov, model) in DEFAULT_ROUTES.items():
+        ov = saved.get(task.value) or {}
+        routes[task.value] = {"provider": ov.get("provider", prov),
+                              "model": ov.get("model", model),
+                              "default_provider": prov, "default_model": model}
+    return {"ai_routes": routes, "providers": KNOWN_PROVIDERS,
+            "budget_alert_usd": settings.token_budget_alert_usd,
+            "chunk_threshold_mb": settings.chunk_threshold_mb,
+            "data_root": str(settings.data_root)}
+
+
+class SettingsIn(BaseModel):
+    ai_routes: dict[str, dict]
+
+
+@router.post("/settings")
+def save_settings(body: SettingsIn, db: Session = Depends(get_db)):
+    from ..models import AppSetting
+
+    row = db.get(AppSetting, "ai_routes") or AppSetting(key="ai_routes")
+    row.value = body.ai_routes
+    db.add(row)
+    db.commit()
+    return {"ok": True}
+
+
 # ---------- cost dashboard ----------
 
 @router.get("/costs")

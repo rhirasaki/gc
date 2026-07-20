@@ -49,8 +49,18 @@ class Route:
     model: str
 
 
-def resolve_route(task: TaskType, project: Project | None = None) -> Route:
+def resolve_route(task: TaskType, project: Project | None = None,
+                  db: Session | None = None) -> Route:
+    """Priority: project override > global UI setting > code default."""
     provider, model = DEFAULT_ROUTES[task]
+    if db is not None:
+        from ..models import AppSetting
+
+        row = db.get(AppSetting, "ai_routes")
+        if row and row.value:
+            ov = row.value.get(task.value) or {}
+            provider = ov.get("provider", provider)
+            model = ov.get("model", model)
     if project and project.ai_overrides:
         ov = project.ai_overrides.get(task.value) or {}
         provider = ov.get("provider", provider)
@@ -77,7 +87,7 @@ def run_text(db: Session, task: TaskType, *, system: str, user: str,
              project: Project | None = None, chapter_id: str | None = None,
              agent: str | None = None, prompt_version: str | None = None,
              max_tokens: int = 4096, temperature: float = 0.7) -> AIResponse:
-    route = resolve_route(task, project)
+    route = resolve_route(task, project, db)
     resp = get_provider(route.provider).generate_text(
         system=system, user=user, model=route.model,
         max_tokens=max_tokens, temperature=temperature,
@@ -90,7 +100,7 @@ def run_text(db: Session, task: TaskType, *, system: str, user: str,
 def run_image(db: Session, task: TaskType, *, system: str, image_path: Path,
               project: Project | None = None, agent: str | None = None,
               prompt_version: str | None = None) -> AIResponse:
-    route = resolve_route(task, project)
+    route = resolve_route(task, project, db)
     resp = get_provider(route.provider).classify_image(
         system=system, image_path=image_path, model=route.model,
     )

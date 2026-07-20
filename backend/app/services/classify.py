@@ -36,7 +36,7 @@ def classify_asset(db: Session, project: Project, asset: Asset, *, force: bool =
     asset.suggested_role = AssetRole(role) if role in AssetRole.__members__ else AssetRole.candid
     from ..ai.router import resolve_route
 
-    route = resolve_route(TaskType.classification, project)
+    route = resolve_route(TaskType.classification, project, db)
     asset.classified_by_provider = route.provider
     asset.classified_by_model = route.model
     asset.classified_at = datetime.now(timezone.utc)
