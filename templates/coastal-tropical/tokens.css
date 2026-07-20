@@ -1,0 +1,23 @@
+/* Coastal / Tropical — bright saturated palette keyed to the trip's own
+   photos (the builder injects --accent/--accent-2 from the project's sampled
+   palette), rounded corners, playful-but-premium type pairing. */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=Nunito+Sans:wght@400;600&display=swap');
+
+:root {
+  --paper: #fffdf8;
+  --ink: #17383e;
+  --accent: #0e8ba8;            /* overridden per-project from sampled palette */
+  --accent-2: #f2a03d;
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'Nunito Sans', 'Helvetica Neue', sans-serif;
+  --display-weight: 650;
+  --cover-title-size: 48pt;
+  --rule: 2px solid var(--accent-2);
+  --divider-scrim: linear-gradient(rgba(14,60,70,.2), rgba(14,60,70,.65));
+  --cover-scrim: linear-gradient(transparent 40%, rgba(10,50,60,.7));
+  --body-leading: 1.65;
+  --para-indent: 0;
+  --photo-radius: .14in;
+  --grid-gap: .2in;
+  --quote-mark: "☀";
+}

@@ -1,0 +1,23 @@
+/* Modern Editorial — high-contrast black/white/single-accent, confident
+   grotesque headlines, magazine negative space. */
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Inter:wght@400;500&display=swap');
+
+:root {
+  --paper: #ffffff;
+  --ink: #0d0d0d;
+  --accent: #e63312;            /* single editorial red */
+  --font-display: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
+  --font-body: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  --display-weight: 800;
+  --display-tracking: -0.02em;
+  --cover-title-size: 64pt;
+  --rule: 2px solid #0d0d0d;
+  --divider-scrim: rgba(0,0,0,.5);
+  --cover-scrim: linear-gradient(transparent 50%, rgba(0,0,0,.7));
+  --body-leading: 1.6;
+  --para-indent: 0;
+  --photo-radius: 0;
+  --grid-gap: .22in;
+  --label-transform: uppercase;
+  --quote-mark: "”";
+}

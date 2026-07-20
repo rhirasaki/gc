@@ -1,0 +1,25 @@
+/* Classic Leather-Bound Archive — deep ink/burgundy, engraved display type,
+   ornamental rules; built for multi-generational family archive commissions. */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&family=Crimson+Pro:ital,wght@0,400;0,500;1,400&display=swap');
+
+:root {
+  --paper: #f5efe4;
+  --ink: #241a16;
+  --accent: #6b1f2a;            /* burgundy */
+  --accent-2: #8c6d3f;          /* old gold */
+  --font-display: 'Cinzel', 'Times New Roman', serif;
+  --font-body: 'Crimson Pro', Georgia, serif;
+  --display-weight: 600;
+  --cover-title-size: 42pt;
+  --rule: 3px double #6b1f2a;
+  --divider-scrim: linear-gradient(rgba(20,8,8,.4), rgba(20,8,8,.82));
+  --cover-scrim: linear-gradient(rgba(20,8,8,.2), rgba(20,8,8,.8));
+  --body-leading: 1.72;
+  --para-indent: 1.6em;
+  --dropcap-size: 38pt;
+  --dropcap-float: left;
+  --dropcap-pad: .1in;
+  --photo-radius: 0;
+  --grid-gap: .18in;
+  --quote-mark: "✦";
+}

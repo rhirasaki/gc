@@ -1,0 +1,23 @@
+/* Scandinavian Minimal — muted neutrals, hairline rules, small caps labels,
+   restraint as the luxury signal. Grids give way to single photos. */
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500&family=Karla:wght@300;400;500&display=swap');
+
+:root {
+  --paper: #fafaf7;
+  --ink: #3c3a36;
+  --accent: #8a8578;            /* warm grey */
+  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-body: 'Karla', 'Helvetica Neue', sans-serif;
+  --display-weight: 400;
+  --cover-title-size: 40pt;
+  --rule: 0.5px solid #c9c5bb;
+  --divider-scrim: rgba(250,250,247,.35);   /* light scrim, dark ink */
+  --divider-ink: #2c2a26;
+  --cover-scrim: linear-gradient(transparent 55%, rgba(30,29,26,.5));
+  --body-leading: 1.85;
+  --para-indent: 0;
+  --margin: 0.85in;              /* extra white space is the design */
+  --photo-radius: 0;
+  --grid-gap: .3in;
+  --quote-mark: "—";
+}

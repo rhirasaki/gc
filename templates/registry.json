@@ -1,0 +1,50 @@
+{
+  "page_size": {"width": "10in", "height": "10in"},
+  "page_types": {
+    "cover": {"components": ["cover-photo", "cover-scrim", "cover-title", "cover-subtitle"]},
+    "front-matter": {"components": ["stats-title", "stats-strip", "synopsis"]},
+    "chapter-divider": {"components": ["divider-photo", "divider-scrim", "divider-kicker", "divider-title"]},
+    "first-page": {"components": ["chapter-head", "narrative", "supporting-photo"]},
+    "photo-grid": {"components": ["figures", "captions"]},
+    "pull-quote": {"components": ["quote"]},
+    "back-cover": {"components": ["colophon"]}
+  },
+  "templates": [
+    {
+      "id": "heritage-journal",
+      "name": "Heritage Journal",
+      "description": "Warm parchment, brass accents, serif display type, full-bleed dark chapter dividers. The reference book's aesthetic.",
+      "page_config": {}
+    },
+    {
+      "id": "modern-editorial",
+      "name": "Modern Editorial",
+      "description": "High-contrast black/white with a single red accent, confident grotesque headlines, magazine grids and negative space.",
+      "page_config": {"first-page": {"components": ["chapter-head", "narrative"]}}
+    },
+    {
+      "id": "scandinavian-minimal",
+      "name": "Scandinavian Minimal",
+      "description": "Muted neutrals, hairline rules, small caps, generous white space; one photo per spread more often than dense grids.",
+      "page_config": {"photo-grid": {"prefer": ["feature-clean", "text-feature"], "avoid": ["quad-grid"]}}
+    },
+    {
+      "id": "coastal-tropical",
+      "name": "Coastal / Tropical",
+      "description": "Bright palette keyed to the trip's own photos (sampled per project), rounded corners, playful premium type.",
+      "page_config": {"accent_from_palette": true}
+    },
+    {
+      "id": "leather-archive",
+      "name": "Classic Leather-Bound Archive",
+      "description": "Deep ink and burgundy, engraved display type, ornamental double rules; for multi-generational archive commissions.",
+      "page_config": {}
+    },
+    {
+      "id": "alpine-adventure",
+      "name": "Alpine / Adventure",
+      "description": "Topographic motifs, rugged condensed headers, data-forward stat call-outs, dark mountain dividers.",
+      "page_config": {"front-matter": {"components": ["stats-title", "stats-strip", "route-stats", "synopsis"]}}
+    }
+  ]
+}

@@ -1,0 +1,96 @@
+/* Shared layout logic for ALL templates.
+   Templates supply tokens (custom properties) + component skins; this file
+   owns geometry. Every visual rule that a build pipeline might touch is a
+   CLASS — never inline styles (binding constraint §2.3/§5).
+   One .page element == one PDF page, which is what makes the PAGE_MAP exact. */
+
+:root {
+  --page-w: 10in;
+  --page-h: 10in;
+  --margin: 0.6in;
+  --bleed-pad: 0;
+}
+
+@page { size: var(--page-w) var(--page-h); margin: 0; }
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { background: var(--paper, #fff); }
+img { display: block; }
+
+.page {
+  width: var(--page-w);
+  height: var(--page-h);
+  overflow: hidden;
+  position: relative;
+  page-break-after: always;
+  break-after: page;
+  background: var(--paper, #fff);
+  color: var(--ink, #1a1a1a);
+  font-family: var(--font-body, Georgia, serif);
+}
+
+.page-inner { position: absolute; inset: var(--margin); display: flex; flex-direction: column; }
+
+/* ---- Cover ---- */
+.cover { display: flex; }
+.cover .cover-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.cover .cover-scrim { position: absolute; inset: 0; background: var(--cover-scrim, linear-gradient(transparent 40%, rgba(0,0,0,.65))); }
+.cover .cover-text { position: absolute; left: var(--margin); right: var(--margin); bottom: var(--margin); color: var(--cover-ink, #fff); }
+.cover-title { font-family: var(--font-display); font-size: var(--cover-title-size, 52pt); line-height: 1.05; font-weight: var(--display-weight, 600); letter-spacing: var(--display-tracking, 0); }
+.cover-subtitle { font-size: 14pt; margin-top: .3in; opacity: .85; letter-spacing: .12em; text-transform: var(--label-transform, uppercase); }
+
+/* ---- Front-matter stats strip ---- */
+.stats-page .page-inner { justify-content: center; }
+.stats-title { font-family: var(--font-display); font-size: 26pt; margin-bottom: .5in; color: var(--accent); }
+.stats-strip { display: flex; gap: .4in; border-top: var(--rule, 1px solid var(--accent)); border-bottom: var(--rule, 1px solid var(--accent)); padding: .35in 0; }
+.stat { flex: 1; text-align: center; }
+.stat-value { font-family: var(--font-display); font-size: 30pt; color: var(--accent); }
+.stat-label { font-size: 9pt; letter-spacing: .18em; text-transform: uppercase; margin-top: .12in; opacity: .7; }
+
+/* ---- Chapter divider ---- */
+.divider { display: flex; }
+.divider .divider-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.divider .divider-scrim { position: absolute; inset: 0; background: var(--divider-scrim, rgba(10,10,10,.55)); }
+.divider .divider-text { position: absolute; left: var(--margin); bottom: var(--margin); right: var(--margin); color: var(--divider-ink, #fff); }
+.divider-kicker { font-size: 10pt; letter-spacing: .25em; text-transform: uppercase; margin-bottom: .2in; opacity: .8; }
+.divider-title { font-family: var(--font-display); font-size: 38pt; line-height: 1.1; font-weight: var(--display-weight, 600); }
+
+/* ---- Feature (full-bleed hero) ---- */
+.fig-feature { position: absolute; inset: var(--bleed-pad); }
+.fig-feature img { width: 100%; height: 100%; object-fit: cover; border-radius: var(--photo-radius, 0); }
+.fig-feature figcaption { position: absolute; bottom: .35in; left: .5in; color: #fff; font-size: 9.5pt; letter-spacing: .05em; text-shadow: 0 1px 6px rgba(0,0,0,.7); }
+
+/* ---- Text page with supporting image ---- */
+.text-feature .page-inner { flex-direction: row; gap: .5in; }
+.text-feature .tf-text { flex: 1.1; display: flex; flex-direction: column; justify-content: center; }
+.text-feature .tf-photo { flex: 0.9; display: flex; flex-direction: column; justify-content: center; }
+.text-feature .tf-photo img { width: 100%; max-height: calc(var(--page-h) - 2*var(--margin) - .5in); object-fit: cover; border-radius: var(--photo-radius, 0); }
+.narrative { font-size: 11.5pt; line-height: var(--body-leading, 1.65); }
+.narrative p + p { margin-top: .22in; text-indent: var(--para-indent, 0); }
+.narrative p:first-child::first-letter { font-family: var(--font-display); font-size: var(--dropcap-size, 11.5pt); float: var(--dropcap-float, none); line-height: .85; padding-right: var(--dropcap-pad, 0); color: var(--accent); }
+.chapter-head { font-family: var(--font-display); font-size: 22pt; color: var(--accent); margin-bottom: .35in; }
+
+/* ---- Grids ---- */
+.grid-page .page-inner { display: grid; gap: var(--grid-gap, .18in); }
+.duo-vertical .page-inner { grid-template-columns: 1fr 1fr; }
+.trio-band .page-inner { grid-template-rows: auto 1fr; grid-template-columns: 1fr 1fr 1fr; }
+.trio-band .band-caption { grid-column: 1 / -1; font-size: 10pt; padding-bottom: .1in; opacity: .75; }
+.quad-grid .page-inner { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.grid-page figure { position: relative; overflow: hidden; border-radius: var(--photo-radius, 0); }
+.grid-page figure img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
+.grid-page figcaption { position: absolute; left: 0; right: 0; bottom: 0; padding: .08in .12in; font-size: 8pt; color: #fff; background: linear-gradient(transparent, rgba(0,0,0,.55)); letter-spacing: .04em; }
+
+/* ---- Pano ---- */
+.pano-spread .page-inner { justify-content: center; }
+.pano-spread img { width: 100%; object-fit: cover; border-radius: var(--photo-radius, 0); }
+
+/* ---- Pull quote ---- */
+.pull-quote-page .page-inner { justify-content: center; align-items: center; text-align: center; }
+.pull-quote { font-family: var(--font-display); font-size: 24pt; line-height: 1.4; max-width: 80%; color: var(--accent); }
+.pull-quote::before { content: var(--quote-mark, "“"); display: block; font-size: 48pt; opacity: .4; }
+
+/* ---- Folio ---- */
+.folio { position: absolute; bottom: .28in; left: 0; right: 0; text-align: center; font-size: 8.5pt; letter-spacing: .2em; color: var(--folio-ink, var(--ink)); opacity: .55; }
+
+/* Manual pin marker (escape hatch §8): pins a hero, excluded from auto grids */
+.pin-hero { outline: none; }

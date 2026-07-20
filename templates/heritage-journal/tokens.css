@@ -1,0 +1,25 @@
+/* Heritage Journal — port of the reference book's aesthetic:
+   warm parchment, brass accents, Playfair Display + EB Garamond,
+   full-bleed dark chapter dividers, stats-strip front matter. */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap');
+
+:root {
+  --paper: #f7f2e9;
+  --ink: #2d2419;
+  --accent: #9a7b3f;            /* brass */
+  --accent-2: #5c6b4c;          /* moss */
+  --font-display: 'Playfair Display', 'Times New Roman', serif;
+  --font-body: 'EB Garamond', Georgia, serif;
+  --display-weight: 600;
+  --rule: 1px solid #9a7b3f;
+  --divider-scrim: linear-gradient(rgba(20,16,8,.25), rgba(20,16,8,.75));
+  --cover-scrim: linear-gradient(transparent 35%, rgba(20,16,8,.78));
+  --body-leading: 1.7;
+  --para-indent: 1.4em;
+  --dropcap-size: 34pt;
+  --dropcap-float: left;
+  --dropcap-pad: .08in;
+  --photo-radius: 0;
+  --grid-gap: .16in;
+  --quote-mark: "❦";
+}

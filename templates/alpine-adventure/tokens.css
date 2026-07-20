@@ -1,0 +1,30 @@
+/* Alpine / Adventure — topographic motifs, rugged sans headers, data-forward
+   stat call-outs, dark mountain dividers. Expedition-style trips. */
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Source+Sans+3:wght@400;600&display=swap');
+
+:root {
+  --paper: #f4f5f2;
+  --ink: #23282b;
+  --accent: #c75b12;            /* signal orange */
+  --accent-2: #38505a;          /* slate */
+  --font-display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --font-body: 'Source Sans 3', 'Helvetica Neue', sans-serif;
+  --display-weight: 700;
+  --display-tracking: .01em;
+  --cover-title-size: 56pt;
+  --rule: 2px solid #38505a;
+  --divider-scrim: linear-gradient(rgba(15,22,26,.35), rgba(15,22,26,.85));
+  --cover-scrim: linear-gradient(transparent 45%, rgba(15,22,26,.85));
+  --body-leading: 1.6;
+  --para-indent: 0;
+  --photo-radius: .04in;
+  --grid-gap: .14in;
+  --label-transform: uppercase;
+  --quote-mark: "▲";
+}
+
+/* Topographic contour texture behind stats pages */
+.stats-page {
+  background-image: repeating-radial-gradient(circle at 20% 120%,
+    transparent 0, transparent 38px, rgba(56,80,90,.08) 39px, transparent 40px);
+}
