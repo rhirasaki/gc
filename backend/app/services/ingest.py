@@ -38,7 +38,7 @@ def import_photos(db: Session, project: Project, source_dir: Path,
             content_hash=chash, perceptual_hash=info["perceptual_hash"],
             exif=exif, taken_at=taken, gps_lat=gps.get("lat"), gps_lng=gps.get("lng"),
             width=info["width"], height=info["height"], aspect_class=info["aspect_class"],
-            blur_score=info["blur_score"],
+            blur_score=info["blur_score"], composition_score=info["composition_score"],
         ))
         imported += 1
         if i % 10 == 0:

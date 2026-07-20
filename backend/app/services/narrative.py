@@ -73,6 +73,9 @@ def generate_chapter_narrative(db: Session, project: Project, chapter: Chapter, 
     chapter.narrative = "\n\n".join(strip_evidence_tags(p) for p in draft.get("paragraphs", []))
     chapter.narrative_tone = tone or chapter.narrative_tone
     chapter.grounding_report = report
+    if draft.get("pull_quote"):
+        chapter.layout_plan = {**(chapter.layout_plan or {}),
+                               "pull_quote": strip_evidence_tags(draft["pull_quote"])}
     for ca in chapter.chapter_assets:
         cap = (draft.get("photo_captions") or {}).get(ca.asset_id)
         if cap:

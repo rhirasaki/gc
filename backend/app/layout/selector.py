@@ -34,7 +34,9 @@ def _hero_score(asset) -> float:
     role_bonus = 0.25 if cls.get("suggested_role") == "hero" else 0.0
     aspect_bonus = 0.1 if asset.aspect_class in ("3:2", "16:9", "4:3") else 0.0
     blur_penalty = 0.15 if (asset.blur_score or 1000) < 200 else 0.0
-    return quality + role_bonus + aspect_bonus - blur_penalty
+    # Local rule-of-thirds signal (0..1), weighted lightly under the AI score.
+    thirds_bonus = 0.15 * (getattr(asset, "composition_score", None) or 0.0)
+    return quality + role_bonus + aspect_bonus + thirds_bonus - blur_penalty
 
 
 def pick_hero(chapter) -> str | None:

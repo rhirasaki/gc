@@ -38,6 +38,17 @@ def init_db() -> None:
     from . import models  # noqa: F401 — register mappings
 
     Base.metadata.create_all(engine)
+    # Additive mini-migrations for SQLite (create_all never alters existing
+    # tables). Each entry is idempotent — the ALTER fails harmlessly if the
+    # column already exists.
+    from sqlalchemy import text
+
+    for ddl in ("ALTER TABLE assets ADD COLUMN composition_score FLOAT",):
+        try:
+            with engine.begin() as conn:
+                conn.execute(text(ddl))
+        except Exception:  # noqa: BLE001 — column already present
+            pass
     # Seed builtin template rows from the on-disk registry so FKs resolve.
     registry_path = settings.templates_root / "registry.json"
     if registry_path.exists():

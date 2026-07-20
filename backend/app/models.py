@@ -159,6 +159,7 @@ class Asset(Base):
 
     # Local heuristics (no tokens spent)
     blur_score: Mapped[float | None] = mapped_column(Float)
+    composition_score: Mapped[float | None] = mapped_column(Float)  # rule-of-thirds, 0..1
     duplicate_of: Mapped[str | None] = mapped_column(ForeignKey("assets.id"))
 
     # AI classification — cached forever keyed on content_hash.

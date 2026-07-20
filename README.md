@@ -92,6 +92,11 @@ Two render tiers: **Final** (full render, then each chapter's page range cached
 as its own PDF) and **Preview** (cached chapters stitched + only dirty chapters
 re-exported — cost scales with what changed).
 
+Measured at scale (`scripts/stress_render.py`, this container): a 294MB
+payload / 82-page book renders through the chunked path in ~6 min with the
+app process peaking at 422MB and each fresh chunk worker under 500MB —
+memory stays bounded regardless of book size.
+
 Every page is an explicit fixed-size `.page` element, so the chapter→page map is
 computed exactly from the HTML by string scanning — no render needed.
 

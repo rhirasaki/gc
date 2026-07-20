@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import html
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 from ..config import settings
@@ -34,6 +35,12 @@ def _img_uri(asset) -> str:
     if _IMG_MODE == "api":
         return f"/api/assets/{asset.id}/file"
     path = Path(asset.original_path if asset.finalized else (asset.working_path or asset.original_path))
+    if asset.finalized:
+        # RAW originals resolve to their developed JPEG — Chromium can't
+        # render a .nef; non-RAW paths pass through unchanged.
+        from ..photos.pipeline import readable_image_path
+
+        path = readable_image_path(path)
     return path.resolve().as_uri()
 
 
@@ -93,6 +100,51 @@ def front_matter_page(project: Project) -> str:
         f'<div class="stat"><div class="stat-value">{n_photos}</div><div class="stat-label">Photographs</div></div>'
         f'<div class="stat"><div class="stat-value">{n_places}</div><div class="stat-label">Places</div></div>'
         f'</div>{syn}</div></div>'
+    )
+
+
+def map_spread_page(project: Project) -> str:
+    """Map spread (§8 component list): a stylized SVG plot of the trip's pins
+    — no external tiles, prints crisply, and every template skins it through
+    tokens (stroke/fill inherit --accent/--ink). Emitted when at least three
+    pins are geolocated."""
+    pins = [p for p in project.map_pins if p.lat is not None and p.lng is not None]
+    if len(pins) < 3:
+        return ""
+    lats = [p.lat for p in pins]
+    lngs = [p.lng for p in pins]
+    pad_lat = max((max(lats) - min(lats)) * 0.15, 0.01)
+    pad_lng = max((max(lngs) - min(lngs)) * 0.15, 0.01)
+    lat0, lat1 = min(lats) - pad_lat, max(lats) + pad_lat
+    lng0, lng1 = min(lngs) - pad_lng, max(lngs) + pad_lng
+
+    def xy(p) -> tuple[float, float]:
+        x = (p.lng - lng0) / (lng1 - lng0) * 900 + 50
+        y = (1 - (p.lat - lat0) / (lat1 - lat0)) * 800 + 80
+        return round(x, 1), round(y, 1)
+
+    ordered = sorted(pins, key=lambda p: (p.visited_at is None,
+                                          p.visited_at or datetime.max.replace(tzinfo=timezone.utc)))
+    pts = [xy(p) for p in ordered]
+    route = ""
+    if any(p.visited_at for p in pins):
+        d = "M " + " L ".join(f"{x},{y}" for x, y in pts)
+        route = f'<path class="map-route" d="{d}"/>'
+    dots, labels = [], []
+    for p, (x, y) in zip(ordered, pts):
+        dots.append(f'<circle class="map-dot" cx="{x}" cy="{y}" r="9"/>')
+        anchor = "end" if x > 500 else "start"
+        dx = -16 if x > 500 else 16
+        labels.append(f'<text class="map-label" x="{x + dx}" y="{y + 5}" '
+                      f'text-anchor="{anchor}">{_esc(p.place_name)}</text>')
+    return (
+        '<div class="page map-page"><div class="page-inner">'
+        '<div class="map-kicker">The Route</div>'
+        f'<div class="map-title">{_esc(" · ".join(project.destinations or [project.trip_name]))}</div>'
+        '<svg class="map-svg" viewBox="0 0 1000 960" role="img" '
+        f'aria-label="Map of {len(pins)} places">'
+        f'{route}{"".join(dots)}{"".join(labels)}</svg>'
+        '</div></div>'
     )
 
 
@@ -192,9 +244,10 @@ def build_monolith(project: Project) -> Path:
                 cover_hero = _img_uri(a)
                 break
 
-    preamble = cover_page(project, cover_hero) + front_matter_page(project)
+    preamble = (cover_page(project, cover_hero) + front_matter_page(project)
+                + map_spread_page(project))
     fragment_paths: list[Path] = []
-    folio = 2  # cover + front matter
+    folio = preamble.count('class="page')  # cover + front matter (+ map spread)
     for ch in chapters:
         frag_path = dirs["chapters"] / f"{ch.id}.html"
         frag_path.write_text(chapter_html(project, ch, folio), encoding="utf-8")
@@ -224,8 +277,9 @@ def build_web_preview(project: Project) -> Path:
                 if a:
                     cover_hero = _img_uri(a)
                     break
-        parts = [head, cover_page(project, cover_hero), front_matter_page(project)]
-        folio = 2
+        parts = [head, cover_page(project, cover_hero), front_matter_page(project),
+                 map_spread_page(project)]
+        folio = "".join(parts[1:]).count('class="page')
         for ch in chapters:
             frag = chapter_html(project, ch, folio)
             parts.append(frag)

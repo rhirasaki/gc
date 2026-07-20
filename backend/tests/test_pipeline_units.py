@@ -127,3 +127,45 @@ def test_manifest_is_compact(db):
     m = tools.project_manifest(p)
     assert m["chapters"][0]["photos"] == 6
     assert "narrative" not in str(m)  # book content never enters chat context
+
+
+def test_composition_score_prefers_thirds():
+    from PIL import Image, ImageDraw
+
+    from app.photos.pipeline import composition_score
+
+    # Subject on the thirds intersection vs dead center vs empty frame
+    def frame(cx_frac):
+        img = Image.new("RGB", (600, 400), "#888888")
+        d = ImageDraw.Draw(img)
+        cx, cy = int(600 * cx_frac), int(400 / 3)
+        d.ellipse([cx - 60, cy - 60, cx + 60, cy + 60], fill="#ffffff", outline="#000000", width=6)
+        return img
+
+    thirds = composition_score(frame(1 / 3))
+    center = composition_score(frame(0.5))
+    empty = composition_score(Image.new("RGB", (600, 400), "#888888"))
+    assert 0.0 <= center <= 1.0 and 0.0 <= thirds <= 1.0
+    assert thirds > center
+    assert empty == 0.0
+
+
+def test_map_spread_page_svg(db, tmp_path, monkeypatch):
+    from datetime import datetime, timezone
+
+    from app.build.builder import map_spread_page
+    from app.models import MapPin
+
+    p, _, _ = _seed(db)
+    assert map_spread_page(p) == ""  # <3 geolocated pins: no page
+    for i, (name, lat, lng) in enumerate([("Harbor", 64.15, -21.94),
+                                          ("Vik Beach", 63.41, -19.01),
+                                          ("Lagoon", 64.05, -16.18)]):
+        db.add(MapPin(project_id=p.id, place_name=name, lat=lat, lng=lng,
+                      visited_at=datetime(2025, 6, 10 + i, tzinfo=timezone.utc)))
+    db.commit()
+    db.refresh(p)
+    html = map_spread_page(p)
+    assert html.count('class="page map-page"') == 1
+    assert html.count("map-dot") == 3 and "Vik Beach" in html
+    assert "map-route" in html  # timestamps present -> route line drawn
