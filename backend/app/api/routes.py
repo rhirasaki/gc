@@ -213,6 +213,23 @@ def override_asset(asset_id: str, body: AssetOverrideIn, db: Session = Depends(g
     return {"ok": True}
 
 
+class TemplatePickIn(BaseModel):
+    template_id: str
+
+
+@router.post("/projects/{project_id}/template")
+def set_template(project_id: str, body: TemplatePickIn, db: Session = Depends(get_db)):
+    """Swap the whole book's template (§8) — content untouched, every chapter
+    dirtied for re-render. Uses the chat tool so it lands in the change log
+    and is undoable."""
+    from ..chat import tools
+
+    p = _get_project(db, project_id)
+    if db.get(Template, body.template_id) is None:
+        raise HTTPException(404, "No such template")
+    return tools.set_project_template(db, p, body.template_id)
+
+
 # ---------- chapter editing ----------
 
 def _get_chapter(db: Session, project: Project, chapter_id: str) -> Chapter:
@@ -335,6 +352,22 @@ class NarrativeIn(BaseModel):
 def narrative(project_id: str, body: NarrativeIn, db: Session = Depends(get_db)):
     job = enqueue(db, project_id, "regenerate_narrative", body.model_dump())
     return {"job_id": job.id}
+
+
+@router.post("/projects/{project_id}/notes/segment")
+def segment_notes_route(project_id: str, db: Session = Depends(get_db)):
+    _get_project(db, project_id)
+    job = enqueue(db, project_id, "segment_notes")
+    return {"job_id": job.id}
+
+
+@router.post("/projects/{project_id}/chapters/{chapter_id}/suggest-hero")
+def suggest_hero_route(project_id: str, chapter_id: str, db: Session = Depends(get_db)):
+    from ..services.hero_rank import suggest_hero
+
+    p = _get_project(db, project_id)
+    ch = _get_chapter(db, p, chapter_id)
+    return suggest_hero(db, p, ch)
 
 
 @router.post("/projects/{project_id}/research")

@@ -49,7 +49,8 @@ export default function Project() {
           <Stat label="Chapters" value={p.chapter_count} />
           <Stat label="AI spend" value={money(p.ai_spend_usd)} sub={`of ${money(p.sale_price_usd)} sale`} />
           <Stat label="Margin" value={p.margin_pct != null ? `${p.margin_pct}%` : "—"} />
-          <Stat label="Template" value={<span className="text-sm">{p.template_id}</span>} />
+          <TemplatePicker current={p.template_id} onPick={(tid) =>
+            api.setTemplate(id, tid).then(() => { say(`Template set to ${tid} — chapters marked for re-render`); reload(); }).catch((e) => say(String(e)))} />
         </div>
         {p.synopsis && <p className="text-sm text-ink-2 mt-4 border-t border-line pt-3">{p.synopsis}</p>}
       </Card>
@@ -184,6 +185,16 @@ function ChapterEditor({ projectId, chapter, assets, say, reload }: {
           onClick={() => run(api.renameChapter(projectId, chapter.id, label.trim()), "Renamed")}>
           Rename
         </Button>
+        <Button kind="quiet"
+          onClick={() => api.suggestHero(projectId, chapter.id)
+            .then((r) => {
+              if (!r.ranked.length) return say("No candidates to rank");
+              run(api.pinHero(projectId, chapter.id, r.ranked[0]),
+                `Hero pinned. ${r.rationale}`);
+            })
+            .catch((e) => say(String(e)))}>
+          Suggest hero
+        </Button>
       </div>
 
       <div className="flex gap-2 flex-wrap">
@@ -289,6 +300,23 @@ function Photos({ assets, onOverride }: { assets: AssetInfo[]; onOverride: (id: 
   );
 }
 
+function TemplatePicker({ current, onPick }: { current: string | null; onPick: (tid: string) => void }) {
+  const [templates, setTemplates] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => { api.templates().then(setTemplates).catch(() => {}); }, []);
+  return (
+    <div>
+      <select
+        className="mono text-sm bg-transparent border-0 border-b border-line focus:border-press max-w-full"
+        value={current ?? ""}
+        onChange={(e) => e.target.value !== current && onPick(e.target.value)}
+      >
+        {templates.map((t) => <option key={t.id} value={t.id}>{t.id}</option>)}
+      </select>
+      <div className="eyebrow mt-1">Template</div>
+    </div>
+  );
+}
+
 const TASKS = ["classification", "narrative", "research", "chat", "grounding", "synopsis"];
 const PROVIDERS = ["", "anthropic", "google", "deepseek", "openai", "local"];
 
@@ -322,10 +350,14 @@ function Sources({ id, p, say, reload }: { id: string; p: ProjectDetail; say: (m
           value={pasted}
           onChange={(e) => setPasted(e.target.value)}
         />
-        <div className="mt-2">
+        <div className="mt-2 flex gap-2">
           <Button kind="quiet" disabled={!pasted.trim()}
             onClick={() => api.importNotes(id, pasted).then(() => { setPasted(""); say("Notes imported"); reload(); })}>
             Import pasted notes
+          </Button>
+          <Button kind="quiet"
+            onClick={() => api.segmentNotes(id).then((r) => say(`Note segmentation queued (job ${r.job_id.slice(0, 8)})`)).catch((e) => say(String(e)))}>
+            Segment multi-day notes
           </Button>
         </div>
       </Card>

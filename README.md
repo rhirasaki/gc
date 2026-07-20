@@ -51,6 +51,22 @@ cd backend && python -m scripts.demo_e2e
 Provider keys via environment: `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`,
 `DEEPSEEK_API_KEY`, `OPENAI_API_KEY`; local models via Ollama (BETA, opt-in).
 
+Optional integrations (everything works without them):
+
+- **Google Drive sync** — `PBG_GDRIVE_CLIENT_ID`, `PBG_GDRIVE_CLIENT_SECRET`,
+  `PBG_GDRIVE_REFRESH_TOKEN` (OAuth refresh-token flow). Per-project pull of
+  photos/notes/map exports and push of rendered PDFs.
+- **Places pin enrichment** — `GOOGLE_MAPS_API_KEY`. Maps lists have no public
+  API, so KML/GeoJSON export is the ingestion path; Places fills in missing
+  categories/coordinates on imported pins.
+- **RQ job backend** — `PBG_JOB_BACKEND=rq` + `PBG_REDIS_URL` +
+  `pip install .[redis]`. Default is a local thread pool (renders already run
+  in fresh subprocesses either way). Falls back to local if Redis is down.
+
+Photo formats: JPEG/PNG/HEIC/TIFF/WebP. Camera RAW is not ingested — export
+to JPEG/HEIC first (adding rawpy support would slot into
+`photos/pipeline.py::SUPPORTED_EXTS`).
+
 ## The rendering architecture (non-negotiable)
 
 Carried from a production 106-page/180-photo build; these are first-class

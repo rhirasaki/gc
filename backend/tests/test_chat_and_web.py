@@ -69,3 +69,36 @@ def test_web_preview_uses_api_urls(db, tmp_path, monkeypatch):
     from app.build import builder
 
     assert builder._IMG_MODE == "file"
+
+
+def test_segment_notes_splits_and_supersedes(db, monkeypatch):
+    from app.models import Note, NoteSource
+    from app.services import segment
+
+    p, _, _ = _seed(db)
+    long_note = Note(project_id=p.id, source_type=NoteSource.pasted, title="Trip log",
+                     text=("Day 1: landed and walked the harbor all morning. " * 3
+                           + "Day 2: drove south the next morning to the beach. " * 3))
+    short = Note(project_id=p.id, source_type=NoteSource.pasted, text="lobster soup")
+    db.add_all([long_note, short])
+    db.commit()
+    db.refresh(p)
+
+    def fake_agent(_db, name, payload, **kw):
+        assert name == "ingestion"
+        return {"segments": [
+            {"day_hint": "Day 1", "text": "Day 1: landed and walked the harbor all morning."},
+            {"day_hint": "Day 2", "text": "Day 2: drove south the next morning to the beach."},
+        ], "mentions": [{"kind": "place", "phrase": "the harbor", "segment_index": 0}]}
+
+    monkeypatch.setattr(segment, "run_agent", fake_agent)
+    r = segment.segment_notes(db, p)
+    assert r["notes_segmented"] == 1 and r["segments_created"] == 2
+    db.refresh(p)
+    segs = [n for n in p.notes_items if (n.raw_metadata or {}).get("segmented_from")]
+    assert len(segs) == 2
+    assert segs[0].raw_metadata["mentions"][0]["phrase"] == "the harbor"
+    assert long_note.raw_metadata["superseded"] is True
+    # short note untouched, and a second run doesn't re-spend on the original
+    assert segment._looks_multi_day(short.text) is False
+    assert segment.segment_notes(db, p)["notes_segmented"] == 0

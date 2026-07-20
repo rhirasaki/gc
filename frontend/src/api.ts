@@ -125,6 +125,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ chapter_id, tone, word_count: 350 }),
     }),
+  setTemplate: (id: string, template_id: string) =>
+    j<object>(`/api/projects/${id}/template`, { method: "POST", body: JSON.stringify({ template_id }) }),
+  segmentNotes: (id: string) => j<{ job_id: string }>(`/api/projects/${id}/notes/segment`, { method: "POST" }),
+  suggestHero: (id: string, chapterId: string) =>
+    j<{ ranked: string[]; rationale: string }>(`/api/projects/${id}/chapters/${chapterId}/suggest-hero`, { method: "POST" }),
   driveConfig: (id: string, drive_folder_id: string | null) =>
     j<object>(`/api/projects/${id}/drive/config`, { method: "POST", body: JSON.stringify({ drive_folder_id }) }),
   driveSync: (id: string, direction: "pull" | "push") =>

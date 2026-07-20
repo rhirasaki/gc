@@ -59,6 +59,10 @@ def _dispatch(db: Session, project: Project | None, job: Job, progress) -> dict:
         from ..services.pin_enrich import enrich_pins
 
         return enrich_pins(db, project, progress)
+    if job.kind == "segment_notes":
+        from ..services.segment import segment_notes
+
+        return segment_notes(db, project, progress)
     if job.kind == "regenerate_narrative":
         chapter = db.get(Chapter, params["chapter_id"])
         out = generate_chapter_narrative(db, project, chapter,
@@ -92,9 +96,32 @@ def _run_job(job_id: str) -> None:
         db.close()
 
 
+def _submit_rq(job_id: str) -> bool:
+    """RQ/Redis backend (settings.job_backend='rq'): survives app restarts and
+    scales past one process. Requires `pip install .[redis]` and a running
+    Redis; returns False (caller falls back to the local pool) if either is
+    missing rather than dropping the job."""
+    try:
+        from redis import Redis
+        from rq import Queue
+
+        from ..config import settings
+
+        conn = Redis.from_url(settings.redis_url)
+        conn.ping()
+        Queue("photobook", connection=conn).enqueue(
+            "app.jobs.queue._run_job", job_id, job_timeout=2 * settings.render_timeout_s)
+        return True
+    except Exception:  # noqa: BLE001 — degrade to local, never lose the job
+        return False
+
+
 def enqueue(db: Session, project_id: str | None, kind: str, params: dict | None = None) -> Job:
+    from ..config import settings
+
     job = Job(project_id=project_id, kind=kind, params=params or {})
     db.add(job)
     db.commit()
-    _executor.submit(_run_job, job.id)
+    if not (settings.job_backend == "rq" and _submit_rq(job.id)):
+        _executor.submit(_run_job, job.id)
     return job

@@ -40,6 +40,9 @@ def _img_uri(asset) -> str:
 def _tokens_css(project: Project) -> str:
     template_id = project.template_id or settings.default_template
     css_path = settings.templates_root / template_id / "tokens.css"
+    if not css_path.exists() and project.template and project.template.base_template_id:
+        # Custom templates have no folder of their own: base bundle + DB tokens.
+        css_path = settings.templates_root / project.template.base_template_id / "tokens.css"
     css = css_path.read_text(encoding="utf-8") if css_path.exists() else ""
     # Custom templates: DB tokens override the base bundle's custom properties.
     if project.template and project.template.tokens:
