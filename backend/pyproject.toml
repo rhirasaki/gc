@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "photobook-generator"
 version = "0.1.0"
@@ -20,7 +24,16 @@ dependencies = [
 [project.optional-dependencies]
 redis = ["rq>=1.16", "redis>=5.0"]
 providers = ["anthropic>=0.25", "google-generativeai>=0.5", "openai>=1.20"]
+raw = ["rawpy>=0.19"]
 dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "httpx>=0.27"]
+
+# Only `app` is an installable package here — prompts/, templates/, scripts/,
+# and tests/ are data/tooling read at runtime by path, not importable modules.
+# Without this, setuptools' flat-layout auto-discovery finds `app` AND
+# `prompts` as top-level packages and refuses to guess (the "Multiple
+# top-level packages discovered" error).
+[tool.setuptools.packages.find]
+include = ["app*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
