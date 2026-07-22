@@ -48,6 +48,16 @@ class AIProvider(Protocol):
                        max_tokens: int = 1024) -> AIResponse: ...
 
 
+def _text_from_message(msg) -> str:
+    """Pull the text block out of a Messages response, skipping any
+    ThinkingBlock entries — extended-thinking models put reasoning in
+    content[0] and the answer later in the array."""
+    for block in msg.content:
+        if getattr(block, "type", None) == "text":
+            return block.text
+    raise ValueError(f"No text block in response content: {msg.content!r}")
+
+
 def _img_b64(path: Path) -> tuple[str, str]:
     media = "image/jpeg" if path.suffix.lower() in (".jpg", ".jpeg") else "image/png"
     return base64.standard_b64encode(path.read_bytes()).decode(), media
@@ -55,6 +65,11 @@ def _img_b64(path: Path) -> tuple[str, str]:
 
 class AnthropicProvider:
     name = "anthropic"
+
+    # Models that reject `temperature` outright (observed live: newer models
+    # can deprecate the knob). Learned per-model at runtime so normal models
+    # never pay the extra round trip.
+    _no_temperature_models: set[str] = set()
 
     def __init__(self, api_key: str | None = None):
         self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
@@ -65,11 +80,22 @@ class AnthropicProvider:
         return anthropic.Anthropic(api_key=self.api_key)
 
     def generate_text(self, *, system, user, model, max_tokens=4096, temperature=0.7) -> AIResponse:
-        msg = self._client().messages.create(
-            model=model, max_tokens=max_tokens, temperature=temperature,
-            system=system, messages=[{"role": "user", "content": user}],
-        )
-        return AIResponse(text=msg.content[0].text, input_tokens=msg.usage.input_tokens,
+        import anthropic
+
+        kwargs = {"model": model, "max_tokens": max_tokens, "system": system,
+                 "messages": [{"role": "user", "content": user}]}
+        if model not in self._no_temperature_models:
+            kwargs["temperature"] = temperature
+        try:
+            msg = self._client().messages.create(**kwargs)
+        except anthropic.BadRequestError as exc:
+            if "temperature" in str(exc).lower() and "temperature" in kwargs:
+                self._no_temperature_models.add(model)
+                kwargs.pop("temperature")
+                msg = self._client().messages.create(**kwargs)
+            else:
+                raise
+        return AIResponse(text=_text_from_message(msg), input_tokens=msg.usage.input_tokens,
                           output_tokens=msg.usage.output_tokens, model=model, provider=self.name)
 
     def classify_image(self, *, system, image_path, model, max_tokens=1024) -> AIResponse:
@@ -81,7 +107,7 @@ class AnthropicProvider:
                 {"type": "text", "text": "Classify this photo per your instructions. JSON only."},
             ]}],
         )
-        return AIResponse(text=msg.content[0].text, input_tokens=msg.usage.input_tokens,
+        return AIResponse(text=_text_from_message(msg), input_tokens=msg.usage.input_tokens,
                           output_tokens=msg.usage.output_tokens, model=model, provider=self.name)
 
     def classify_images_batch(self, *, system: str, images: list[tuple[str, Path]],
@@ -123,7 +149,7 @@ class AnthropicProvider:
                 continue
             msg = entry.result.message
             out[entry.custom_id] = AIResponse(
-                text=msg.content[0].text, input_tokens=msg.usage.input_tokens,
+                text=_text_from_message(msg), input_tokens=msg.usage.input_tokens,
                 output_tokens=msg.usage.output_tokens, model=model, provider=self.name)
         return out
 
